@@ -1,8 +1,13 @@
-import {isSameDay, isSameWeek, isSameMonth} from 'date-fns';
-import {es} from 'date-fns/locale';
 import {Persona} from '../database/types';
 
 export type FiltroFecha = 'hoy' | 'semana' | 'mes' | null;
+
+function getMonthDay(date: Date) {
+  return {
+    month: date.getMonth(), // 0-11
+    day: date.getDate(),
+  };
+}
 
 export function filtrarPersonas(
   personas: Persona[],
@@ -11,24 +16,55 @@ export function filtrarPersonas(
 ): Persona[] {
   let result = personas;
 
+  // 🔍 FILTRO POR TEXTO (nombre o CI)
   if (query.trim()) {
     const q = query.toLowerCase();
+
     result = result.filter(
-      p => p.nombre.toLowerCase().includes(q) || p.ci.toLowerCase().includes(q),
+      p =>
+        p.nombre.toLowerCase().includes(q) ||
+        p.ci.toLowerCase().includes(q),
     );
   }
 
+  // 📅 FILTRO POR FECHA (CUMPLEAÑOS RECURRENTES)
   if (filtroFecha) {
     const hoy = new Date();
+    const hoyMs = hoy.getTime();
+
     result = result.filter(p => {
       const fn = new Date(p.fecha_nacimiento);
+
       switch (filtroFecha) {
-        case 'hoy':
-          return isSameDay(fn, hoy);
-        case 'semana':
-          return isSameWeek(fn, hoy, {locale: es, weekStartsOn: 1});
-        case 'mes':
-          return isSameMonth(fn, hoy);
+        // 🎂 HOY (mismo mes y día, sin importar año)
+        case 'hoy': {
+          return (
+            fn.getMonth() === hoy.getMonth() &&
+            fn.getDate() === hoy.getDate()
+          );
+        }
+
+        // 📆 SEMANA (próximos 7 días)
+        case 'semana': {
+          const cumple = new Date(fn);
+          cumple.setFullYear(hoy.getFullYear());
+
+          // si ya pasó este año, usar siguiente año
+          if (cumple.getTime() < hoyMs) {
+            cumple.setFullYear(hoy.getFullYear() + 1);
+          }
+
+          const diffDias =
+            (cumple.getTime() - hoyMs) / (1000 * 60 * 60 * 24);
+
+          return diffDias >= 0 && diffDias <= 7;
+        }
+
+        // 📅 MES (solo mes actual)
+        case 'mes': {
+          return fn.getMonth() === hoy.getMonth();
+        }
+
         default:
           return true;
       }
@@ -38,7 +74,16 @@ export function filtrarPersonas(
   return result;
 }
 
+// 🎂 SOLO CUMPLEAÑOS DE HOY
 export function getCumpleanerosHoy(personas: Persona[]): Persona[] {
   const hoy = new Date();
-  return personas.filter(p => isSameDay(new Date(p.fecha_nacimiento), hoy));
+
+  return personas.filter(p => {
+    const fn = new Date(p.fecha_nacimiento);
+
+    return (
+      fn.getMonth() === hoy.getMonth() &&
+      fn.getDate() === hoy.getDate()
+    );
+  });
 }

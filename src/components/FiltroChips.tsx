@@ -23,7 +23,10 @@ export default function FiltroChips({filtroActivo, onChange}: Props) {
           <TouchableOpacity
             key={chip.key ?? 'todos'}
             style={[styles.chip, activo && styles.chipActivo]}
-            onPress={() => onChange(activo ? null : chip.key)}>
+            onPress={() => {
+              console.log('FiltroChips:onPress', chip.key);
+              onChange(activo ? null : chip.key);
+            }}>
             <Text style={styles.icon}>{chip.icon}</Text>
             <Text style={[styles.label, activo && styles.labelActivo]}>
               {chip.label}

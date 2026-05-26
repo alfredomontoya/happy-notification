@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   FlatList,
   Image,
@@ -11,10 +11,44 @@ import {
 import {colors} from '../theme/colors';
 import {Persona} from '../database/types';
 import {getAllPersonas} from '../database/personas';
-import {filtrarPersonas, getCumpleanerosHoy, FiltroFecha} from '../utils/filtros';
+import {
+  filtrarPersonas,
+  FiltroFecha,
+} from '../utils/filtros';
+import {format} from 'date-fns';
+import {es} from 'date-fns/locale';
 import PersonaCard from '../components/PersonaCard';
 import FiltroChips from '../components/FiltroChips';
 import NotificationBanner from '../components/NotificationBanner';
+
+
+// ===============================
+// 🧠 HELPERS BANNER
+// ===============================
+
+function getNextBirthdayDate(fecha: Date): Date {
+  const hoy = new Date();
+  const cumple = new Date(fecha);
+
+  cumple.setFullYear(hoy.getFullYear());
+
+  if (cumple.getTime() < hoy.getTime()) {
+    cumple.setFullYear(hoy.getFullYear() + 1);
+  }
+
+  return cumple;
+}
+
+function getDaysDiff(date: Date) {
+  const hoy = new Date();
+  const diff = date.getTime() - hoy.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+
+// ===============================
+// 📱 COMPONENTE
+// ===============================
 
 export default function HomeScreen({navigation}: any) {
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -39,23 +73,86 @@ export default function HomeScreen({navigation}: any) {
     return unsubscribe;
   }, [navigation, cargarDatos]);
 
-  useEffect(() => {
-    if (personas.length > 0) {
-      const cumpleaneros = getCumpleanerosHoy(personas);
-      if (cumpleaneros.length > 0) {
-        setBannerData({names: cumpleaneros.map(p => p.nombre)});
-        setShowBanner(true);
-      }
-    }
-  }, [personas]);
+
+// ===============================
+// 🎉 BANNER INTELIGENTE
+// ===============================
+
+useEffect(() => {
+  if (personas.length === 0) return;
+
+  const hoy = new Date();
+
+  // 🎯 HOY
+  const hoyCumple = personas.filter(p => {
+    const fn = new Date(p.fecha_nacimiento);
+    return (
+      fn.getMonth() === hoy.getMonth() &&
+      fn.getDate() === hoy.getDate()
+    );
+  });
+
+  if (hoyCumple.length > 0) {
+    setBannerData({
+      names: hoyCumple.map(p => p.nombre),
+    });
+    setShowBanner(true);
+    return;
+  }
+
+  // 📅 SEMANA (fallback)
+  const proximos = personas
+    .map(p => {
+      const next = getNextBirthdayDate(new Date(p.fecha_nacimiento));
+      return {
+        ...p,
+        next,
+        diff: getDaysDiff(next),
+      };
+    })
+    .filter(p => p.diff >= 0 && p.diff <= 7)
+    .sort((a, b) => a.diff - b.diff);
+
+  if (proximos.length > 0) {
+    setBannerData({
+      names: proximos.map(p => {
+        if (p.diff === 0) return `${p.nombre} (hoy)`;
+        if (p.diff === 1) return `${p.nombre} (mañana)`;
+        return `${p.nombre} (en ${p.diff} días)`;
+      }),
+    });
+    setShowBanner(true);
+    return;
+  }
+
+  setShowBanner(false);
+}, [personas]);
+
+
+// ===============================
+// 🔍 FILTRO LISTA
+// ===============================
+
+  const fechaActual = format(new Date(), "EEEE d 'de' MMMM yyyy", {
+    locale: es,
+  });
 
   const filtradas = filtrarPersonas(personas, query, filtroFecha);
+
+
+// ===============================
+// 🎨 UI
+// ===============================
 
   return (
     <View style={styles.container}>
       {showBanner && (
         <NotificationBanner
-          message={`🎉 ¡Hoy cumplen años ${bannerData.names.length} personas!`}
+          message={
+            bannerData.names.some(n => n.includes('(hoy)'))
+              ? `🎉 ¡Hoy cumplen años ${bannerData.names.length} personas!`
+              : `📅 Próximos cumpleaños (${bannerData.names.length})`
+          }
           names={bannerData.names}
           onDismiss={() => setShowBanner(false)}
         />
@@ -72,6 +169,7 @@ export default function HomeScreen({navigation}: any) {
             <Text style={styles.title}>STMSC</Text>
             <Text style={styles.subtitle}>Cumpleañeros</Text>
           </View>
+          <Text style={styles.headerDate}>{fechaActual}</Text>
         </View>
       </View>
 
@@ -93,7 +191,9 @@ export default function HomeScreen({navigation}: any) {
         renderItem={({item}) => (
           <PersonaCard
             persona={item}
-            onPress={() => navigation.navigate('Detail', {persona: item})}
+            onPress={() =>
+              navigation.navigate('Detail', {persona: item})
+            }
           />
         )}
         contentContainerStyle={styles.list}
@@ -101,7 +201,9 @@ export default function HomeScreen({navigation}: any) {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyText}>No se encontraron personas</Text>
+            <Text style={styles.emptyText}>
+              No se encontraron personas
+            </Text>
           </View>
         }
       />
@@ -112,6 +214,7 @@ export default function HomeScreen({navigation}: any) {
           onPress={() => navigation.navigate('Import')}>
           <Text style={styles.fabText}>📊</Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate('Form', {persona: null})}>
@@ -121,6 +224,11 @@ export default function HomeScreen({navigation}: any) {
     </View>
   );
 }
+
+
+// ===============================
+// 🎨 ESTILOS
+// ===============================
 
 const styles = StyleSheet.create({
   container: {
@@ -156,6 +264,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
+  headerDate: {
+    flex: 1,
+    textAlign: 'right',
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   searchContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -170,10 +285,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
     elevation: 2,
   },
   list: {
@@ -207,11 +318,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -222,11 +328,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   fabText: {
     fontSize: 24,
