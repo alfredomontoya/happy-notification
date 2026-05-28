@@ -23,7 +23,6 @@ export function filtrarPersonas(
   // 📅 FILTRO POR FECHA (CUMPLEAÑOS RECURRENTES)
   if (filtroFecha) {
     const hoy = new Date();
-    const hoyMs = hoy.getTime();
 
     result = result.filter(p => {
       const fn = new Date(p.fecha_nacimiento);
@@ -32,30 +31,33 @@ export function filtrarPersonas(
         // 🎂 HOY (mismo mes y día, sin importar año)
         case 'hoy': {
           return (
-            fn.getMonth() === hoy.getMonth() &&
-            fn.getDate() === hoy.getDate()
+            fn.getUTCMonth() === hoy.getUTCMonth() &&
+            fn.getUTCDate() === hoy.getUTCDate()
           );
         }
 
         // 📆 SEMANA (próximos 7 días)
         case 'semana': {
-          const cumple = new Date(fn);
-          cumple.setFullYear(hoy.getFullYear());
+          const inicioHoy = new Date();
+          inicioHoy.setUTCHours(0, 0, 0, 0);
+          const inicioHoyMs = inicioHoy.getTime();
 
-          // si ya pasó este año, usar siguiente año
-          if (cumple.getTime() < hoyMs) {
-            cumple.setFullYear(hoy.getFullYear() + 1);
+          const cumple = new Date(fn);
+          cumple.setUTCFullYear(inicioHoy.getUTCFullYear());
+
+          if (cumple.getTime() < inicioHoyMs) {
+            cumple.setUTCFullYear(inicioHoy.getUTCFullYear() + 1);
           }
 
           const diffDias =
-            (cumple.getTime() - hoyMs) / (1000 * 60 * 60 * 24);
+            (cumple.getTime() - inicioHoyMs) / (1000 * 60 * 60 * 24);
 
           return diffDias >= 0 && diffDias <= 7;
         }
 
         // 📅 MES (solo mes actual)
         case 'mes': {
-          return fn.getMonth() === hoy.getMonth();
+          return fn.getUTCMonth() === hoy.getUTCMonth();
         }
 
         default:
@@ -75,8 +77,8 @@ export function getCumpleanerosHoy(personas: Persona[]): Persona[] {
     const fn = new Date(p.fecha_nacimiento);
 
     return (
-      fn.getMonth() === hoy.getMonth() &&
-      fn.getDate() === hoy.getDate()
+      fn.getUTCMonth() === hoy.getUTCMonth() &&
+      fn.getUTCDate() === hoy.getUTCDate()
     );
   });
 }

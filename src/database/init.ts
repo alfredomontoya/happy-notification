@@ -1,6 +1,8 @@
 import SQLite from 'react-native-sqlite-storage';
-import {generarPersonas} from '../utils/seed';
+import {Image} from 'react-native';
+import * as XLSX from 'xlsx';
 import {createPersona} from './personas';
+import {buildAutoMapping, parseSheetToPersonas} from '../utils/xlsxParser';
 
 SQLite.enablePromise(true);
 
@@ -33,11 +35,46 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   const count = result.rows.item(0).count;
 
   if (count === 0) {
-    const personas = generarPersonas(50);
-    for (const p of personas) {
-      await createPersona(db, p);
-    }
+    await seedFromExcel(db);
   }
 
   return db;
+}
+
+async function seedFromExcel(database: SQLite.SQLiteDatabase) {
+  try {
+    const assetRef = require('../../assets/cumple.xlsx');
+    const source = Image.resolveAssetSource(assetRef);
+    const response = await fetch(source.uri);
+    const blob = await response.arrayBuffer();
+    const workbook = XLSX.read(blob, {type: 'array', cellDates: true});
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json<any[]>(sheet, {
+      header: 1,
+      raw: true,
+    });
+
+    if (data.length < 2) {
+      console.warn('El archivo cumple.xlsx debe tener al menos 2 filas');
+      return;
+    }
+
+    const fileHeaders = data[0].map(h => String(h).trim());
+    const fileRows = data.slice(1).filter(r =>
+      r.some(c => String(c).trim()),
+    );
+    const mapping = buildAutoMapping(fileHeaders);
+    const personas = parseSheetToPersonas(fileHeaders, fileRows, mapping);
+
+    for (const p of personas) {
+      try {
+        await createPersona(database, p);
+      } catch (e) {
+        console.warn('Error insertando persona:', e);
+      }
+    }
+  } catch (e) {
+    console.warn('Error al cargar cumple.xlsx:', e);
+  }
 }

@@ -1,4 +1,4 @@
-import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, StyleSheet, Text, TouchableOpacity} from 'react-native';
 import {colors} from '../theme/colors';
 import {FiltroFecha} from '../utils/filtros';
 
@@ -16,7 +16,7 @@ const chips: {key: FiltroFecha; label: string; icon: string}[] = [
 
 export default function FiltroChips({filtroActivo, onChange}: Props) {
   return (
-    <View style={styles.container}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>
       {chips.map(chip => {
         const activo = filtroActivo === chip.key;
         return (
@@ -34,22 +34,23 @@ export default function FiltroChips({filtroActivo, onChange}: Props) {
           </TouchableOpacity>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    flexGrow: 0,
     gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 4,
+    minHeight: 48,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 20,
     backgroundColor: colors.surface,
     borderWidth: 1,

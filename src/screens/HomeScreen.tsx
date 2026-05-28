@@ -136,7 +136,7 @@ useEffect(() => {
 // 🔍 FILTRO LISTA
 // ===============================
 
-  const fechaActual = format(new Date(), "EEEE d 'de' MMMM yyyy", {
+  const fechaActual = format(new Date(), "EEEE d 'de' MMMM yyyy, HH:mm", {
     locale: es,
   });
 

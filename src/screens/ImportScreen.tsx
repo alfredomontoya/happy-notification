@@ -12,76 +12,18 @@ import {pick, types} from '@react-native-documents/picker';
 import * as XLSX from 'xlsx';
 import {colors} from '../theme/colors';
 import {importPersonas, limpiarPersonas} from '../database/personas';
-
-type RowData = any[];
-
-const CAMPOS = ['ci', 'nombre', 'cargo', 'dependencia', 'fecha_nacimiento'] as const;
-const CAMPOS_REQUERIDOS = ['nombre', 'fecha_nacimiento'];
-const CAMPOS_LABELS: Record<string, string> = {
-  ci: 'CI',
-  nombre: 'Nombre',
-  cargo: 'Cargo',
-  dependencia: 'Dependencia',
-  fecha_nacimiento: 'Fecha de Nac.',
-};
-
-function formatearPreview(valor: any): string {
-  if (valor instanceof Date && !isNaN(valor.getTime())) {
-    const d = String(valor.getDate()).padStart(2, '0');
-    const m = String(valor.getMonth() + 1).padStart(2, '0');
-    const y = valor.getFullYear();
-    return `${d}/${m}/${y}`;
-  }
-  return String(valor ?? '').slice(0, 30);
-}
-
-function convertirFecha(raw: any): string {
-  if (!raw) {
-    return '';
-  }
-
-  if (raw instanceof Date && !isNaN(raw.getTime())) {
-    const y = raw.getFullYear();
-    const m = String(raw.getMonth() + 1).padStart(2, '0');
-    const d = String(raw.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-
-  const str = String(raw).trim();
-
-  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})T/);
-  if (iso) {
-    return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  }
-
-  const num = Number(str);
-  if (!isNaN(num) && num > 10000 && num < 200000) {
-    const date = new Date((num - 25569) * 86400 * 1000);
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-
-  const partes = str.split(/[/\-.]/);
-  if (partes.length === 3) {
-    if (partes[0].length === 4) {
-      const m = partes[1].padStart(2, '0');
-      const d = partes[2].padStart(2, '0');
-      return `${partes[0]}-${m}-${d}`;
-    }
-    const d = partes[0].padStart(2, '0');
-    const m = partes[1].padStart(2, '0');
-    const y = partes[2].length === 2 ? '20' + partes[2] : partes[2];
-    return `${y}-${m}-${d}`;
-  }
-
-  return str;
-}
+import {
+  CAMPOS,
+  CAMPOS_LABELS,
+  CAMPOS_REQUERIDOS,
+  buildAutoMapping,
+  formatearPreview,
+  parseSheetToPersonas,
+} from '../utils/xlsxParser';
 
 export default function ImportScreen({navigation}: any) {
   const [headers, setHeaders] = useState<string[]>([]);
-  const [rows, setRows] = useState<RowData[]>([]);
+  const [rows, setRows] = useState<any[][]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [showPicker, setShowPicker] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
@@ -114,23 +56,7 @@ export default function ImportScreen({navigation}: any) {
 
       setHeaders(fileHeaders);
       setRows(fileRows);
-
-      const autoMapping: Record<string, string> = {};
-      fileHeaders.forEach((h, i) => {
-        const lower = h.toLowerCase();
-        if (lower.includes('ci') || lower.includes('cedula') || lower.includes('cédula')) {
-          autoMapping[i] = 'ci';
-        } else if (lower.includes('nombre') || lower.includes('apellido')) {
-          autoMapping[i] = 'nombre';
-        } else if (lower.includes('cargo')) {
-          autoMapping[i] = 'cargo';
-        } else if (lower.includes('dependencia') || lower.includes('departamento')) {
-          autoMapping[i] = 'dependencia';
-        } else if (lower.includes('fecha') || lower.includes('nacimiento')) {
-          autoMapping[i] = 'fecha_nacimiento';
-        }
-      });
-      setMapping(autoMapping);
+      setMapping(buildAutoMapping(fileHeaders));
     } catch {
       Alert.alert('Error', 'No se pudo leer el archivo');
     }
@@ -149,17 +75,7 @@ export default function ImportScreen({navigation}: any) {
 
     setImporting(true);
     try {
-      const personas = rows.map(row => {
-        const persona: any = {};
-        Object.entries(mapping).forEach(([colIdx, campo]) => {
-          const raw = row[Number(colIdx)];
-          persona[campo] = campo === 'fecha_nacimiento'
-            ? convertirFecha(raw)
-            : String(raw ?? '').trim();
-        });
-        return persona;
-      });
-
+      const personas = parseSheetToPersonas(headers, rows, mapping);
       const count = await importPersonas(personas);
       Alert.alert('Importación exitosa', `Se importaron ${count} personas`, [
         {text: 'OK', onPress: () => navigation.goBack()},
