@@ -1,3 +1,4 @@
+import {StyleSheet, View} from 'react-native';
 import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {colors} from '../theme/colors';
@@ -5,13 +6,20 @@ import HomeScreen from '../screens/HomeScreen';
 import DetailScreen from '../screens/DetailScreen';
 import FormScreen from '../screens/FormScreen';
 import ImportScreen from '../screens/ImportScreen';
+import FuncionariosScreen from '../screens/FuncionariosScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import CreditsScreen from '../screens/CreditsScreen';
+import {DrawerProvider, useDrawer} from '../context/DrawerContext';
+import DrawerMenu from '../components/DrawerMenu';
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+function AppContent() {
+  const {navigationRef} = useDrawer();
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {backgroundColor: colors.primary},
@@ -42,11 +50,43 @@ export default function AppNavigator() {
           options={{title: 'Importar Excel'}}
         />
         <Stack.Screen
+          name="Funcionarios"
+          component={FuncionariosScreen}
+          options={{title: 'Funcionarios'}}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{title: 'Configuración'}}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{title: 'Perfil de Usuario'}}
+        />
+        <Stack.Screen
           name="Credits"
           component={CreditsScreen}
-          options={{title: 'Créditos'}}
+          options={{title: 'Acerca de'}}
         />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+
+export default function AppNavigator() {
+  return (
+    <DrawerProvider>
+      <View style={styles.root}>
+        <AppContent />
+        <DrawerMenu />
+      </View>
+    </DrawerProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

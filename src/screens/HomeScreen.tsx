@@ -21,6 +21,7 @@ import PersonaCard from '../components/PersonaCard';
 import FiltroChips from '../components/FiltroChips';
 import NotificationBanner from '../components/NotificationBanner';
 import {showBirthdayNotification} from '../services/notifications';
+import {useDrawer} from '../context/DrawerContext';
 
 
 // ===============================
@@ -52,6 +53,7 @@ function getDaysDiff(date: Date) {
 // ===============================
 
 export default function HomeScreen({navigation}: any) {
+  const {toggleDrawer} = useDrawer();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [query, setQuery] = useState('');
   const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>(null);
@@ -174,9 +176,9 @@ useEffect(() => {
           </View>
           <Text style={styles.headerDate}>{fechaActual}</Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Credits')}
-            style={styles.creditsBtn}>
-            <Text style={styles.creditsIcon}>{'\u2699\uFE0E'}</Text>
+            onPress={toggleDrawer}
+            style={styles.menuBtn}>
+            <Text style={styles.menuIcon}>{'\u2630'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -279,12 +281,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  creditsBtn: {
+  menuBtn: {
     marginLeft: 8,
     padding: 4,
   },
-  creditsIcon: {
-    fontSize: 22,
+  menuIcon: {
+    fontSize: 24,
     color: colors.white,
   },
   searchContainer: {

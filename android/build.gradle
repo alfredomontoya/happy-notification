@@ -18,4 +18,12 @@ buildscript {
     }
 }
 
+allprojects {
+    afterEvaluate { p ->
+        if (p.hasProperty("android")) {
+            p.android.compileSdk = rootProject.ext.compileSdkVersion
+        }
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"
