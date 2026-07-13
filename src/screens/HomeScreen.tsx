@@ -21,7 +21,6 @@ import PersonaCard from '../components/PersonaCard';
 import FiltroChips from '../components/FiltroChips';
 import NotificationBanner from '../components/NotificationBanner';
 import {showBirthdayNotification} from '../services/notifications';
-import {useDrawer} from '../context/DrawerContext';
 
 
 // ===============================
@@ -53,7 +52,6 @@ function getDaysDiff(date: Date) {
 // ===============================
 
 export default function HomeScreen({navigation}: any) {
-  const {toggleDrawer} = useDrawer();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [query, setQuery] = useState('');
   const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>(null);
@@ -176,9 +174,9 @@ useEffect(() => {
           </View>
           <Text style={styles.headerDate}>{fechaActual}</Text>
           <TouchableOpacity
-            onPress={toggleDrawer}
+            onPress={() => navigation.openDrawer()}
             style={styles.menuBtn}>
-            <Text style={styles.menuIcon}>{'\u2630'}</Text>
+            <Text style={styles.menuIcon}>☰</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -219,12 +217,6 @@ useEffect(() => {
       />
 
       <View style={styles.fabContainer}>
-        <TouchableOpacity
-          style={styles.fabExcel}
-          onPress={() => navigation.navigate('Import')}>
-          <Text style={styles.fabText}>📊</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate('Form', {persona: null})}>
@@ -328,16 +320,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     alignItems: 'center',
-  },
-  fabExcel: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   fab: {
     width: 56,

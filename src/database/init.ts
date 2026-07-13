@@ -29,6 +29,18 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
     )
   `);
 
+  await db.executeSql(`
+    CREATE TABLE IF NOT EXISTS funcionarios (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ci TEXT DEFAULT '',
+      nombre TEXT NOT NULL,
+      cargo TEXT DEFAULT '',
+      dependencia TEXT DEFAULT '',
+      telefono TEXT DEFAULT '',
+      email TEXT DEFAULT ''
+    )
+  `);
+
   const [result] = await db.executeSql(
     'SELECT COUNT(*) as count FROM personas',
   );

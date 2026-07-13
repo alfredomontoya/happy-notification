@@ -1,14 +1,21 @@
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {format, parse} from 'date-fns';
 import {colors} from '../theme/colors';
-import {Persona} from '../database/types';
 
 interface Props {
-  persona: Persona;
+  persona: {
+    id: number;
+    ci: string;
+    nombre: string;
+    cargo: string;
+    dependencia: string;
+    fecha_nacimiento?: string;
+  };
   onPress: () => void;
+  showBirthday?: boolean;
 }
 
-export default function PersonaCard({persona, onPress}: Props) {
+export default function PersonaCard({persona, onPress, showBirthday = true}: Props) {
   const iniciales = persona.nombre
     .split(' ')
     .map(n => n[0])
@@ -16,13 +23,18 @@ export default function PersonaCard({persona, onPress}: Props) {
     .slice(0, 2)
     .toUpperCase();
 
-  const fechaFormateada = (() => {
-    try {
-      return format(parse(persona.fecha_nacimiento, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy');
-    } catch {
-      return persona.fecha_nacimiento;
-    }
-  })();
+  const fechaFormateada = showBirthday && persona.fecha_nacimiento
+    ? (() => {
+        try {
+          return format(
+            parse(persona.fecha_nacimiento, 'yyyy-MM-dd', new Date()),
+            'dd/MM/yyyy',
+          );
+        } catch {
+          return persona.fecha_nacimiento;
+        }
+      })()
+    : null;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
@@ -44,7 +56,9 @@ export default function PersonaCard({persona, onPress}: Props) {
             </Text>
           </View>
         </View>
-        <Text style={styles.fecha}>🎂 {fechaFormateada}</Text>
+        {fechaFormateada && (
+          <Text style={styles.fecha}>🎂 {fechaFormateada}</Text>
+        )}
       </View>
       <Text style={styles.arrow}>›</Text>
     </TouchableOpacity>
