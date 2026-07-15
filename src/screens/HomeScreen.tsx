@@ -163,6 +163,11 @@ useEffect(() => {
 
       <View style={styles.header}>
         <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => navigation.openDrawer()}
+            style={styles.menuBtn}>
+            <Text style={styles.menuIcon}>☰</Text>
+          </TouchableOpacity>
           <Image
             source={require('../assets/logo.png')}
             style={styles.logo}
@@ -173,11 +178,6 @@ useEffect(() => {
             <Text style={styles.subtitle}>Cumpleañeros</Text>
           </View>
           <Text style={styles.headerDate}>{fechaActual}</Text>
-          <TouchableOpacity
-            onPress={() => navigation.openDrawer()}
-            style={styles.menuBtn}>
-            <Text style={styles.menuIcon}>☰</Text>
-          </TouchableOpacity>
         </View>
       </View>
 

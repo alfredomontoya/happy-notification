@@ -54,14 +54,9 @@ export default function FuncionariosListScreen({navigation}: any) {
             <Text style={styles.menuIcon}>☰</Text>
           </TouchableOpacity>
           <View>
-            <Text style={styles.title}>STMSC</Text>
-            <Text style={styles.subtitle}>Funcionarios</Text>
+            <Text style={styles.title}>FUNCIONARIOS</Text>
+            <Text style={styles.subtitle}>Lista de funcionarios registrados</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('FuncionarioForm', {funcionario: null})}
-            style={styles.addBtn}>
-            <Text style={styles.addIcon}>+</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -101,6 +96,14 @@ export default function FuncionariosListScreen({navigation}: any) {
           </View>
         }
       />
+
+      <View style={styles.fabContainer}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('FuncionarioForm', {funcionario: null})}>
+          <Text style={styles.fabText}>+</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -129,7 +132,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   title: {
-    flex: 1,
     fontSize: 22,
     fontWeight: '700',
     color: '#FFFFFF',
@@ -138,19 +140,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
-  },
-  addBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addIcon: {
-    fontSize: 22,
-    color: '#FFFFFF',
-    fontWeight: '600',
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -167,7 +156,28 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 100,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#0D9488',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabText: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   empty: {
     alignItems: 'center',
