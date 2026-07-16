@@ -7,10 +7,21 @@ export default function FuncionarioDetailScreen({route, navigation}: any) {
   const {colors} = useTheme();
   const funcionario: Funcionario = route.params.funcionario;
 
+  const nombreCompleto =
+    funcionario.nombres +
+    ' ' +
+    (funcionario.apellidos ?? '');
+  const iniciales = nombreCompleto
+    .split(' ')
+    .map((w: string) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   const handleDelete = () => {
     Alert.alert(
       'Eliminar funcionario',
-      `¿Eliminar a ${funcionario.nombre}?`,
+      '¿Eliminar a ' + funcionario.nombres + '?',
       [
         {text: 'Cancelar', style: 'cancel'},
         {
@@ -28,7 +39,9 @@ export default function FuncionarioDetailScreen({route, navigation}: any) {
   const Row = ({label, value}: {label: string; value: string}) => (
     <View style={[styles.row, {borderBottomColor: colors.border}]}>
       <Text style={[styles.label, {color: colors.textSecondary}]}>{label}</Text>
-      <Text style={[styles.value, {color: colors.textPrimary}]}>{value || '—'}</Text>
+      <Text style={[styles.value, {color: colors.textPrimary}]}>
+        {value || '—'}
+      </Text>
     </View>
   );
 
@@ -36,28 +49,33 @@ export default function FuncionarioDetailScreen({route, navigation}: any) {
     <View style={[styles.container, {backgroundColor: colors.primaryBg}]}>
       <View style={[styles.card, {backgroundColor: colors.surface}]}>
         <View style={[styles.avatar, {backgroundColor: colors.primary}]}>
-          <Text style={styles.avatarText}>
-            {funcionario.nombre
-              .split(' ')
-              .map((w: string) => w[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase()}
-          </Text>
+          <Text style={styles.avatarText}>{iniciales}</Text>
         </View>
 
         <Text style={[styles.name, {color: colors.textPrimary}]}>
-          {funcionario.nombre}
+          {nombreCompleto}
         </Text>
         <Text style={[styles.ci, {color: colors.textSecondary}]}>
-          CI: {funcionario.ci}
+          CI: {funcionario.ci || '—'}
         </Text>
 
         <View style={styles.details}>
+          <Row label="Nro" value={funcionario.nro} />
           <Row label="Cargo" value={funcionario.cargo} />
-          <Row label="Dependencia" value={funcionario.dependencia} />
-          <Row label="Teléfono" value={funcionario.telefono} />
-          <Row label="Email" value={funcionario.email} />
+          <Row label="Edificio" value={funcionario.edificio} />
+          <Row label="Tipo" value={funcionario.tipo} />
+          <Row label="Responsable" value={funcionario.responsable} />
+          <Row label="Tel. Responsable" value={funcionario.telresponsable} />
+          <Row
+            label="Estado"
+            value={
+              funcionario.estado === 'activo' ? 'Activo' : 'Inactivo'
+            }
+          />
+          <Row
+            label="Entregado"
+            value={funcionario.entregado === 1 ? 'Sí' : 'No'}
+          />
         </View>
 
         <View style={styles.actions}>

@@ -1,6 +1,6 @@
 import {useEffect, useRef} from 'react';
 import {Animated, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 
 interface Props {
   message: string;
@@ -9,6 +9,7 @@ interface Props {
 }
 
 export default function NotificationBanner({message, names, onDismiss}: Props) {
+  const {colors} = useTheme();
   const slideAnim = useRef(new Animated.Value(-150)).current;
 
   useEffect(() => {
@@ -33,18 +34,22 @@ export default function NotificationBanner({message, names, onDismiss}: Props) {
 
   return (
     <Animated.View
-      style={[styles.container, {transform: [{translateY: slideAnim}]}]}>
+      style={[
+        styles.container,
+        {backgroundColor: colors.notificationBg},
+        {transform: [{translateY: slideAnim}]},
+      ]}>
       <View style={styles.content}>
         <Text style={styles.emoji}>🎂</Text>
         <View style={styles.textContainer}>
-          <Text style={styles.message}>{message}</Text>
-          <Text style={styles.names}>{names.slice(0, 3).join(', ')}</Text>
+          <Text style={[styles.message, {color: colors.notificationText}]}>{message}</Text>
+          <Text style={[styles.names, {color: colors.notificationText}]}>{names.slice(0, 3).join(', ')}</Text>
           {names.length > 3 && (
-            <Text style={styles.more}>y {names.length - 3} más...</Text>
+            <Text style={[styles.more, {color: colors.notificationText}]}>y {names.length - 3} más...</Text>
           )}
         </View>
         <TouchableOpacity onPress={onDismiss} style={styles.closeBtn}>
-          <Text style={styles.closeText}>✕</Text>
+          <Text style={[styles.closeText, {color: colors.notificationText}]}>✕</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -60,7 +65,6 @@ const styles = StyleSheet.create({
     zIndex: 100,
     marginHorizontal: 16,
     marginTop: 8,
-    backgroundColor: colors.notificationBg,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: {width: 0, height: 4},
@@ -83,17 +87,14 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.notificationText,
   },
   names: {
     fontSize: 13,
-    color: colors.notificationText,
     marginTop: 2,
     opacity: 0.8,
   },
   more: {
     fontSize: 12,
-    color: colors.notificationText,
     marginTop: 1,
     opacity: 0.6,
   },
@@ -108,7 +109,6 @@ const styles = StyleSheet.create({
   },
   closeText: {
     fontSize: 14,
-    color: colors.notificationText,
     fontWeight: '600',
   },
 });

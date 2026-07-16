@@ -14,11 +14,12 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import {format} from 'date-fns';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 import {Persona} from '../database/types';
 import {createPersonaFromApp, updatePersona} from '../database/personas';
 
 export default function FormScreen({route, navigation}: any) {
+  const {colors} = useTheme();
   const persona: Persona | null = route.params.persona;
   const isEditing = persona !== null;
 
@@ -78,7 +79,7 @@ export default function FormScreen({route, navigation}: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, {backgroundColor: colors.primaryBg}]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         contentContainerStyle={styles.content}
@@ -89,32 +90,36 @@ export default function FormScreen({route, navigation}: any) {
           onChangeText={setCi}
           placeholder="1234567"
           keyboardType="numeric"
+          colors={colors}
         />
         <Field
           label="Nombre *"
           value={nombre}
           onChangeText={setNombre}
           placeholder="Nombre completo"
+          colors={colors}
         />
         <Field
           label="Cargo"
           value={cargo}
           onChangeText={setCargo}
           placeholder="Ej: Secretario General"
+          colors={colors}
         />
         <Field
           label="Dependencia"
           value={dependencia}
           onChangeText={setDependencia}
           placeholder="Ej: Dirección de Obras Públicas"
+          colors={colors}
         />
 
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>Fecha de nacimiento *</Text>
+          <Text style={[styles.label, {color: colors.textSecondary}]}>Fecha de nacimiento *</Text>
           <TouchableOpacity
-            style={styles.dateButton}
+            style={[styles.dateButton, {backgroundColor: colors.surface, borderColor: colors.primary}]}
             onPress={() => setShowPicker(true)}>
-            <Text style={styles.dateButtonText}>
+            <Text style={[styles.dateButtonText, {color: colors.textPrimary}]}>
               {fechaNacimiento
                 ? format(parseDate(fechaNacimiento), "d 'de' MMMM yyyy")
                 : 'Seleccionar fecha'}
@@ -131,8 +136,8 @@ export default function FormScreen({route, navigation}: any) {
           />
         )}
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveBtnText}>
+        <TouchableOpacity style={[styles.saveBtn, {backgroundColor: colors.primary, shadowColor: colors.primary}]} onPress={handleSave}>
+          <Text style={[styles.saveBtnText, {color: colors.white}]}>
             {isEditing ? 'Actualizar' : 'Guardar'}
           </Text>
         </TouchableOpacity>
@@ -147,18 +152,20 @@ function Field({
   onChangeText,
   placeholder,
   keyboardType,
+  colors,
 }: {
   label: string;
   value: string;
   onChangeText: (t: string) => void;
   placeholder?: string;
   keyboardType?: 'default' | 'numeric';
+  colors: any;
 }) {
   return (
     <View style={styles.fieldContainer}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, {color: colors.textSecondary}]}>{label}</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, {backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border}]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -172,7 +179,6 @@ function Field({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primaryBg,
   },
   content: {
     padding: 16,
@@ -184,40 +190,31 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textSecondary,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   dateButton: {
-    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: colors.primary,
   },
   dateButtonText: {
     fontSize: 16,
-    color: colors.textPrimary,
   },
   saveBtn: {
-    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 12,
-    shadowColor: colors.primary,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -226,6 +223,5 @@ const styles = StyleSheet.create({
   saveBtnText: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.white,
   },
 });

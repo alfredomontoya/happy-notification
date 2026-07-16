@@ -1,5 +1,5 @@
 import {Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 
 const credits = [
   {rol: 'PROGRAMADOR BACKEND', nombre: 'ING. ALFREDO MONTOYA'},
@@ -7,34 +7,35 @@ const credits = [
 ];
 
 export default function CreditsScreen() {
+  const {colors} = useTheme();
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, {backgroundColor: colors.primaryBg}]}
       contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>SC</Text>
+      <View style={[styles.card, {backgroundColor: colors.surface}]}>
+        <View style={[styles.iconCircle, {backgroundColor: colors.primary}]}>
+          <Text style={[styles.iconText, {color: colors.white}]}>SC</Text>
         </View>
-        <Text style={styles.title}>Créditos</Text>
+        <Text style={[styles.title, {color: colors.textPrimary}]}>Créditos</Text>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, {backgroundColor: colors.border}]} />
 
         {credits.map(c => (
           <View key={c.rol} style={styles.creditRow}>
-            <Text style={styles.rol}>{c.rol}</Text>
-            <Text style={styles.nombre}>{c.nombre}</Text>
+            <Text style={[styles.rol, {color: colors.textSecondary}]}>{c.rol}</Text>
+            <Text style={[styles.nombre, {color: colors.textPrimary}]}>{c.nombre}</Text>
           </View>
         ))}
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, {backgroundColor: colors.border}]} />
 
-        <Text style={styles.rights}>
+        <Text style={[styles.rights, {color: colors.textSecondary}]}>
           Derechos Reservados © 2026
         </Text>
 
         <TouchableOpacity
           onPress={() => Linking.openURL('https://sofcruz.com.bo')}>
-          <Text style={styles.website}>sofcruz.com.bo</Text>
+          <Text style={[styles.website, {color: colors.primary}]}>sofcruz.com.bo</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -44,7 +45,6 @@ export default function CreditsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primaryBg,
   },
   content: {
     padding: 16,
@@ -52,7 +52,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 32,
     alignItems: 'center',
@@ -66,7 +65,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -74,19 +72,16 @@ const styles = StyleSheet.create({
   iconText: {
     fontSize: 22,
     fontWeight: '800',
-    color: colors.white,
     letterSpacing: 2,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.textPrimary,
     marginBottom: 16,
   },
   divider: {
     width: '80%',
     height: 1,
-    backgroundColor: colors.border,
     marginVertical: 20,
   },
   creditRow: {
@@ -96,25 +91,21 @@ const styles = StyleSheet.create({
   rol: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.textSecondary,
     letterSpacing: 1.5,
     marginBottom: 4,
   },
   nombre: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   rights: {
     fontSize: 14,
-    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: 8,
   },
   website: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.primary,
     textDecorationLine: 'underline',
   },
 });

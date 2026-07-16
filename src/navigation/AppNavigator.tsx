@@ -17,6 +17,9 @@ import CreditsScreen from '../screens/CreditsScreen';
 import FuncionariosListScreen from '../screens/FuncionariosListScreen';
 import FuncionarioDetailScreen from '../screens/FuncionarioDetailScreen';
 import FuncionarioFormScreen from '../screens/FuncionarioFormScreen';
+import ImportExcelFuncionariosScreen from '../screens/ImportExcelFuncionariosScreen';
+import GestionListScreen from '../screens/GestionListScreen';
+import GestionFormScreen from '../screens/GestionFormScreen';
 import ConfiguracionScreen from '../screens/ConfiguracionScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 
@@ -91,6 +94,11 @@ function FuncionariosStack() {
             : 'Nuevo funcionario',
         })}
       />
+      <Stack.Screen
+        name="ImportExcelFuncionarios"
+        component={ImportExcelFuncionariosScreen}
+        options={{title: 'Importar funcionarios'}}
+      />
     </Stack.Navigator>
   );
 }
@@ -123,6 +131,36 @@ function ConfiguracionStack() {
   );
 }
 
+function GestionStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {backgroundColor: '#0D9488'},
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {fontWeight: '600'},
+        contentStyle: {backgroundColor: '#F0FDF4'},
+      }}>
+      <Stack.Screen
+        name="GestionList"
+        component={GestionListScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="GestionForm"
+        component={GestionFormScreen}
+        options={({route}: any) => ({
+          title: route.params?.gestion ? 'Editar gestión' : 'Nueva gestión',
+        })}
+      />
+      <Stack.Screen
+        name="ImportExcelFuncionarios"
+        component={ImportExcelFuncionariosScreen}
+        options={{title: 'Importar funcionarios'}}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function PerfilStack() {
   return (
     <Stack.Navigator
@@ -148,6 +186,7 @@ function CustomDrawerContent({navigation}: any) {
   const items = [
     {label: '🎂 Cumpleaños', screen: 'Cumpleaños'},
     {label: '👥 Funcionarios', screen: 'Funcionarios'},
+    {label: '📁 Gestión', screen: 'Gestión'},
     {label: '⚙️ Configuración', screen: 'Configuración'},
     {label: '👤 Perfil', screen: 'Perfil'},
   ];
@@ -202,6 +241,7 @@ export default function AppNavigator() {
       }}>
       <Drawer.Screen name="Cumpleaños" component={CumpleaniosStack} />
       <Drawer.Screen name="Funcionarios" component={FuncionariosStack} />
+      <Drawer.Screen name="Gestión" component={GestionStack} />
       <Drawer.Screen name="Configuración" component={ConfiguracionStack} />
       <Drawer.Screen name="Perfil" component={PerfilStack} />
     </Drawer.Navigator>

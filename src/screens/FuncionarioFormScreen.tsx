@@ -11,34 +11,52 @@ import {
   View,
 } from 'react-native';
 import {useTheme} from '../context/ThemeContext';
+import {useAuth} from '../context/AuthContext';
 import {Funcionario} from '../database/types';
 import {createFuncionario, updateFuncionario} from '../database/funcionarios';
 
 export default function FuncionarioFormScreen({route, navigation}: any) {
   const {colors} = useTheme();
+  const {user} = useAuth();
   const existing: Funcionario | null = route.params?.funcionario ?? null;
+  const gestionId: string =
+    route.params?.gestionId ?? existing?.gestion_id ?? '';
   const isEdit = !!existing;
 
+  const [nro, setNro] = useState(existing?.nro ?? '');
   const [ci, setCi] = useState(existing?.ci ?? '');
-  const [nombre, setNombre] = useState(existing?.nombre ?? '');
+  const [nombres, setNombres] = useState(existing?.nombres ?? '');
+  const [apellidos, setApellidos] = useState(existing?.apellidos ?? '');
   const [cargo, setCargo] = useState(existing?.cargo ?? '');
-  const [dependencia, setDependencia] = useState(existing?.dependencia ?? '');
-  const [telefono, setTelefono] = useState(existing?.telefono ?? '');
-  const [email, setEmail] = useState(existing?.email ?? '');
+  const [edificio, setEdificio] = useState(existing?.edificio ?? '');
+  const [tipo, setTipo] = useState(existing?.tipo ?? '');
+  const [responsable, setResponsable] = useState(existing?.responsable ?? '');
+  const [telresponsable, setTelresponsable] = useState(
+    existing?.telresponsable ?? '',
+  );
+  const [estado, setEstado] = useState(existing?.estado ?? 'activo');
+  const [entregado, setEntregado] = useState(existing?.entregado === 1);
 
   const handleSave = async () => {
-    if (!nombre.trim()) {
+    if (!nombres.trim()) {
       Alert.alert('Error', 'El nombre es obligatorio');
       return;
     }
 
-    const data = {
+    const data: any = {
+      user_id: user?.id ?? '',
+      gestion_id: gestionId,
+      nro: nro.trim(),
       ci: ci.trim(),
-      nombre: nombre.trim(),
+      nombres: nombres.trim(),
+      apellidos: apellidos.trim(),
       cargo: cargo.trim(),
-      dependencia: dependencia.trim(),
-      telefono: telefono.trim(),
-      email: email.trim(),
+      edificio: edificio.trim(),
+      tipo: tipo.trim(),
+      responsable: responsable.trim(),
+      telresponsable: telresponsable.trim(),
+      estado: estado.trim(),
+      entregado: entregado ? 1 : 0,
     };
 
     if (isEdit) {
@@ -62,34 +80,107 @@ export default function FuncionarioFormScreen({route, navigation}: any) {
             {isEdit ? 'Editar funcionario' : 'Nuevo funcionario'}
           </Text>
 
+          <Input label="Nro" value={nro} onChange={setNro} colors={colors} />
           <Input label="CI" value={ci} onChange={setCi} colors={colors} />
           <Input
-            label="Nombre *"
-            value={nombre}
-            onChange={setNombre}
+            label="Nombres *"
+            value={nombres}
+            onChange={setNombres}
+            colors={colors}
+          />
+          <Input
+            label="Apellidos"
+            value={apellidos}
+            onChange={setApellidos}
             colors={colors}
           />
           <Input label="Cargo" value={cargo} onChange={setCargo} colors={colors} />
           <Input
-            label="Dependencia"
-            value={dependencia}
-            onChange={setDependencia}
+            label="Edificio"
+            value={edificio}
+            onChange={setEdificio}
+            colors={colors}
+          />
+          <Input label="Tipo" value={tipo} onChange={setTipo} colors={colors} />
+          <Input
+            label="Responsable"
+            value={responsable}
+            onChange={setResponsable}
             colors={colors}
           />
           <Input
-            label="Teléfono"
-            value={telefono}
-            onChange={setTelefono}
+            label="Tel. Responsable"
+            value={telresponsable}
+            onChange={setTelresponsable}
             colors={colors}
             keyboardType="phone-pad"
           />
-          <Input
-            label="Email"
-            value={email}
-            onChange={setEmail}
-            colors={colors}
-            keyboardType="email-address"
-          />
+
+          <View style={styles.switchRow}>
+            <Text style={[styles.switchLabel, {color: colors.textSecondary}]}>
+              Estado
+            </Text>
+            <View style={styles.switchOptions}>
+              <TouchableOpacity
+                style={[
+                  styles.switchOption,
+                  {
+                    backgroundColor:
+                      estado === 'activo' ? colors.primary : colors.primaryBg,
+                  },
+                ]}
+                onPress={() => setEstado('activo')}>
+                <Text
+                  style={[
+                    styles.switchOptionText,
+                    {color: estado === 'activo' ? '#FFFFFF' : colors.textPrimary},
+                  ]}>
+                  Activo
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.switchOption,
+                  {
+                    backgroundColor:
+                      estado === 'inactivo' ? colors.primary : colors.primaryBg,
+                  },
+                ]}
+                onPress={() => setEstado('inactivo')}>
+                <Text
+                  style={[
+                    styles.switchOptionText,
+                    {
+                      color:
+                        estado === 'inactivo' ? '#FFFFFF' : colors.textPrimary,
+                    },
+                  ]}>
+                  Inactivo
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.checkboxRow,
+              {backgroundColor: entregado ? colors.primaryBg : 'transparent'},
+            ]}
+            onPress={() => setEntregado(!entregado)}>
+            <View
+              style={[
+                styles.checkbox,
+                {
+                  backgroundColor: entregado ? colors.primary : 'transparent',
+                  borderColor: entregado ? colors.primary : colors.border,
+                },
+              ]}>
+              {entregado && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={[styles.checkboxLabel, {color: colors.textPrimary}]}>
+              Entregado
+            </Text>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.btn, {backgroundColor: colors.primary}]}
@@ -167,11 +258,59 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
   },
+  switchRow: {
+    marginBottom: 16,
+  },
+  switchLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  switchOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  switchOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  switchOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkmark: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  checkboxLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
   btn: {
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 4,
   },
   btnText: {
     color: '#FFFFFF',

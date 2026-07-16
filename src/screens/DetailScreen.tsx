@@ -1,9 +1,10 @@
 import {Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 import {Persona} from '../database/types';
 import {deletePersona} from '../database/personas';
 
 export default function DetailScreen({route, navigation}: any) {
+  const {colors} = useTheme();
   const persona: Persona = route.params.persona;
 
   const handleDelete = () => {
@@ -33,10 +34,10 @@ export default function DetailScreen({route, navigation}: any) {
   ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, {backgroundColor: colors.primaryBg}]} contentContainerStyle={styles.content}>
       <View style={styles.avatarContainer}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
+        <View style={[styles.avatar, {backgroundColor: colors.primary}]}>
+          <Text style={[styles.avatarText, {color: colors.white}]}>
             {persona.nombre
               .split(' ')
               .map(n => n[0])
@@ -45,34 +46,34 @@ export default function DetailScreen({route, navigation}: any) {
               .toUpperCase()}
           </Text>
         </View>
-        <Text style={styles.nombre}>{persona.nombre}</Text>
-        <Text style={styles.cargo}>{persona.cargo}</Text>
+        <Text style={[styles.nombre, {color: colors.textPrimary}]}>{persona.nombre}</Text>
+        <Text style={[styles.cargo, {color: colors.textSecondary}]}>{persona.cargo}</Text>
       </View>
 
-      <View style={styles.card}>
+      <View style={[styles.card, {backgroundColor: colors.surface}]}>
         {fields.map((field, index) => (
           <View
             key={field.label}
             style={[
               styles.fieldRow,
-              index < fields.length - 1 && styles.fieldBorder,
+              index < fields.length - 1 && [styles.fieldBorder, {borderBottomColor: colors.border}],
             ]}>
-            <Text style={styles.fieldLabel}>{field.label}</Text>
-            <Text style={styles.fieldValue}>{field.value}</Text>
+            <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>{field.label}</Text>
+            <Text style={[styles.fieldValue, {color: colors.textPrimary}]}>{field.value}</Text>
           </View>
         ))}
       </View>
 
       <View style={styles.actions}>
         <TouchableOpacity
-          style={styles.editBtn}
+          style={[styles.editBtn, {backgroundColor: colors.primary}]}
           onPress={() =>
             navigation.navigate('Form', {persona})
           }>
-          <Text style={styles.editBtnText}>Editar</Text>
+          <Text style={[styles.editBtnText, {color: colors.white}]}>Editar</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteBtnText}>Eliminar</Text>
+        <TouchableOpacity style={[styles.deleteBtn, {backgroundColor: colors.surface, borderColor: colors.danger}]} onPress={handleDelete}>
+          <Text style={[styles.deleteBtnText, {color: colors.danger}]}>Eliminar</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -82,7 +83,6 @@ export default function DetailScreen({route, navigation}: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primaryBg,
   },
   content: {
     padding: 16,
@@ -96,7 +96,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -104,20 +103,16 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 32,
     fontWeight: '700',
-    color: colors.white,
   },
   nombre: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.textPrimary,
   },
   cargo: {
     fontSize: 15,
-    color: colors.textSecondary,
     marginTop: 4,
   },
   card: {
-    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
@@ -131,19 +126,16 @@ const styles = StyleSheet.create({
   },
   fieldBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   fieldLabel: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   fieldValue: {
     fontSize: 16,
-    color: colors.textPrimary,
     fontWeight: '500',
   },
   actions: {
@@ -153,7 +145,6 @@ const styles = StyleSheet.create({
   },
   editBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
@@ -161,20 +152,16 @@ const styles = StyleSheet.create({
   editBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
   },
   deleteBtn: {
     flex: 1,
-    backgroundColor: colors.surface,
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.danger,
   },
   deleteBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.danger,
   },
 });

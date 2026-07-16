@@ -11,18 +11,21 @@ import {
 import {pick, types} from '@react-native-documents/picker';
 import * as XLSX from 'xlsx';
 import {useTheme} from '../context/ThemeContext';
-import {importPersonas, limpiarPersonas} from '../database/personas';
+import {useAuth} from '../context/AuthContext';
+import {createFuncionario} from '../database/funcionarios';
 import {
   CAMPOS,
   CAMPOS_LABELS,
   CAMPOS_REQUERIDOS,
   buildAutoMapping,
   formatearPreview,
-  parseSheetToPersonas,
-} from '../utils/xlsxParser';
+  parseSheetToFuncionarios,
+} from '../utils/xlsxParserFuncionarios';
 
-export default function ImportScreen({navigation}: any) {
-  const {colors} = useTheme();
+export default function ImportExcelFuncionariosScreen({route, navigation}: any) {
+  const gestionId: string = route.params?.gestionId ?? '';
+  const {colors: ctxColors} = useTheme();
+  const {user} = useAuth();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<any[][]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -35,9 +38,7 @@ export default function ImportScreen({navigation}: any) {
         type: [types.xlsx, types.xls],
       });
 
-      if (result.length === 0) {
-        return;
-      }
+      if (result.length === 0) return;
 
       const file = result[0];
       const response = await fetch(file.uri);
@@ -64,80 +65,87 @@ export default function ImportScreen({navigation}: any) {
   };
 
   const handleImport = async () => {
+    if (!gestionId) {
+      Alert.alert('Error', 'No hay una gestión seleccionada');
+      return;
+    }
+
     const usedFields = new Set(Object.values(mapping));
     const missing = CAMPOS_REQUERIDOS.filter(c => !usedFields.has(c));
     if (missing.length > 0) {
       Alert.alert(
         'Faltan campos requeridos',
-        `Debes mapear: ${missing.map(c => CAMPOS_LABELS[c]).join(', ')}`,
+        'Debes mapear: ' + missing.map(c => CAMPOS_LABELS[c]).join(', '),
       );
       return;
     }
 
     setImporting(true);
     try {
-      const personas = parseSheetToPersonas(headers, rows, mapping);
-      const count = await importPersonas(personas);
-      Alert.alert('Importación exitosa', `Se importaron ${count} personas`, [
+      const funcionarios = parseSheetToFuncionarios(
+        headers,
+        rows,
+        mapping,
+        user?.id ?? '',
+        gestionId,
+      );
+      let count = 0;
+      for (const f of funcionarios) {
+        try {
+          await createFuncionario(f);
+          count++;
+        } catch (e) {
+          console.warn('Error insertando funcionario:', e);
+        }
+      }
+      Alert.alert('Importación exitosa', 'Se importaron ' + count + ' funcionarios', [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);
     } catch {
-      Alert.alert('Error', 'No se pudo leer el archivo');
+      Alert.alert('Error', 'No se pudieron importar los datos');
+    } finally {
+      setImporting(false);
     }
   };
 
-  const handleClearAll = () => {
-    Alert.alert(
-      'Limpiar todos los datos',
-      '¿Estás seguro? Se eliminarán todas las personas registradas.',
-      [
-        {text: 'Cancelar', style: 'cancel'},
-        {
-          text: 'Limpiar',
-          style: 'destructive',
-          onPress: async () => {
-            await limpiarPersonas();
-            Alert.alert('Listo', 'Todos los datos fueron eliminados');
-            navigation.goBack();
-          },
-        },
-      ],
-    );
-  };
-
   return (
-    <ScrollView style={[styles.container, {backgroundColor: colors.primaryBg}]} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, {backgroundColor: ctxColors.primaryBg}]}
+      contentContainerStyle={styles.content}>
       {headers.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={[styles.emptyTitle, {color: colors.textPrimary}]}>Importar desde Excel</Text>
-          <Text style={[styles.emptyDesc, {color: colors.textSecondary}]}>
-            Selecciona un archivo .xlsx o .xls con los datos de personas
+          <Text style={[styles.emptyTitle, {color: ctxColors.textPrimary}]}>
+            Importar funcionarios
           </Text>
-          <TouchableOpacity style={[styles.pickBtn, {backgroundColor: colors.primary}]} onPress={handlePickFile}>
-            <Text style={[styles.pickBtnText, {color: colors.white}]}>Seleccionar archivo</Text>
-          </TouchableOpacity>
+          <Text style={[styles.emptyDesc, {color: ctxColors.textSecondary}]}>
+            Selecciona un archivo .xlsx o .xls con los datos de funcionarios
+          </Text>
           <TouchableOpacity
-            style={[styles.clearBtn, {borderColor: colors.danger}]}
-            onPress={handleClearAll}>
-            <Text style={[styles.clearBtnText, {color: colors.danger}]}>Limpiar todos los datos</Text>
+            style={[styles.pickBtn, {backgroundColor: ctxColors.primary}]}
+            onPress={handlePickFile}>
+            <Text style={styles.pickBtnText}>Seleccionar archivo</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <>
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Mapeo de columnas</Text>
-          <Text style={[styles.sectionDesc, {color: colors.textSecondary}]}>
+          <Text style={[styles.sectionTitle, {color: ctxColors.textPrimary}]}>
+            Mapeo de columnas
+          </Text>
+          <Text style={[styles.sectionDesc, {color: ctxColors.textSecondary}]}>
             Selecciona qué campo corresponde a cada columna del Excel
           </Text>
 
           {headers.map((header, colIdx) => (
             <TouchableOpacity
               key={colIdx}
-              style={[styles.mappingRow, {backgroundColor: colors.surface, borderColor: colors.border}]}
+              style={[styles.mappingRow, {backgroundColor: ctxColors.surface, borderColor: ctxColors.border}]}
               onPress={() => setShowPicker(colIdx)}>
-              <Text style={[styles.colHeader, {color: colors.textPrimary}]}>{header}</Text>
-              <Text style={[styles.colArrow, {color: colors.textSecondary}]}>→</Text>
-              <Text style={[styles.colField, {color: colors.primary}]}>
+              <Text style={[styles.colHeader, {color: ctxColors.textPrimary}]}>
+                {header}
+              </Text>
+              <Text style={styles.colArrow}>→</Text>
+              <Text style={[styles.colField, {color: ctxColors.primary}]}>
                 {mapping[colIdx]
                   ? CAMPOS_LABELS[mapping[colIdx]]
                   : '— Ignorar —'}
@@ -145,34 +153,42 @@ export default function ImportScreen({navigation}: any) {
             </TouchableOpacity>
           ))}
 
-          <Text style={[styles.sectionTitle, {color: colors.textPrimary}]}>Vista previa</Text>
+          <Text style={[styles.sectionTitle, {color: ctxColors.textPrimary}]}>
+            Vista previa
+          </Text>
           {rows.slice(0, 5).map((row, ri) => (
-            <View key={ri} style={[styles.previewRow, {backgroundColor: colors.surface, borderColor: colors.border}]}>
+            <View
+              key={ri}
+              style={[styles.previewRow, {backgroundColor: ctxColors.surface, borderColor: ctxColors.border}]}>
               {Object.entries(mapping).map(([colIdx, campo]) => (
-                <Text key={campo} style={[styles.previewCell, {color: colors.textPrimary}]}>
+                <Text key={colIdx} style={[styles.previewCell, {color: ctxColors.textPrimary}]}>
                   {campo}: {formatearPreview(row[Number(colIdx)])}
                 </Text>
               ))}
             </View>
           ))}
           {rows.length > 5 && (
-            <Text style={[styles.moreText, {color: colors.textSecondary}]}>
+            <Text style={[styles.moreText, {color: ctxColors.textSecondary}]}>
               ...y {rows.length - 5} filas más
             </Text>
           )}
 
           <View style={styles.actions}>
             <TouchableOpacity
-              style={[styles.pickBtn, {backgroundColor: colors.primary}]}
+              style={[styles.pickBtn, {backgroundColor: ctxColors.primary}]}
               onPress={handlePickFile}>
-              <Text style={[styles.pickBtnText, {color: colors.white}]}>Cambiar archivo</Text>
+              <Text style={styles.pickBtnText}>Cambiar archivo</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.importBtn, {backgroundColor: colors.primary}, importing && styles.disabled]}
+              style={[
+                styles.importBtn,
+                {backgroundColor: ctxColors.primary},
+                importing && styles.disabled,
+              ]}
               onPress={handleImport}
               disabled={importing}>
-              <Text style={[styles.importBtnText, {color: colors.white}]}>
-                {importing ? 'Importando...' : `Importar ${rows.length} personas`}
+              <Text style={styles.importBtnText}>
+                {importing ? 'Importando...' : 'Importar ' + rows.length + ' funcionarios'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -180,48 +196,54 @@ export default function ImportScreen({navigation}: any) {
       )}
 
       <Modal visible={showPicker !== null} transparent animationType="slide">
-        <View style={[styles.modalOverlay, {backgroundColor: colors.overlay}]}>
-          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: ctxColors.surface}]}>
+            <Text style={[styles.modalTitle, {color: ctxColors.textPrimary}]}>
               Mapear: {showPicker !== null ? headers[showPicker] : ''}
             </Text>
-            <TouchableOpacity
-              style={[styles.modalOption, {borderBottomColor: colors.border}]}
-              onPress={() => {
-                if (showPicker !== null) {
-                  const newMapping = {...mapping};
-                  delete newMapping[showPicker];
-                  setMapping(newMapping);
-                  setShowPicker(null);
-                }
-              }}>
-              <Text style={[styles.modalOptionText, {color: colors.textPrimary}]}>— Ignorar columna —</Text>
-            </TouchableOpacity>
-            {CAMPOS.map(campo => (
+            <ScrollView style={styles.modalScroll}>
               <TouchableOpacity
-                key={campo}
-                style={[styles.modalOption, {borderBottomColor: colors.border}]}
+                style={[styles.modalOption, {borderBottomColor: ctxColors.border}]}
                 onPress={() => {
                   if (showPicker !== null) {
                     const newMapping = {...mapping};
-                    Object.entries(newMapping).forEach(([k, v]) => {
-                      if (v === campo) delete newMapping[k];
-                    });
-                    newMapping[showPicker] = campo;
+                    delete newMapping[showPicker];
                     setMapping(newMapping);
                     setShowPicker(null);
                   }
                 }}>
-                <Text style={[styles.modalOptionText, {color: colors.textPrimary}]}>
-                  {CAMPOS_LABELS[campo]}
-                  {Object.values(mapping).includes(campo) ? ' ✓' : ''}
+                <Text style={[styles.modalOptionText, {color: ctxColors.textPrimary}]}>
+                  — Ignorar columna —
                 </Text>
               </TouchableOpacity>
-            ))}
+              {CAMPOS.map(campo => (
+                <TouchableOpacity
+                  key={campo}
+                  style={[styles.modalOption, {borderBottomColor: ctxColors.border}]}
+                  onPress={() => {
+                    if (showPicker !== null) {
+                      const newMapping = {...mapping};
+                      Object.entries(newMapping).forEach(([k, v]) => {
+                        if (v === campo) delete newMapping[k];
+                      });
+                      newMapping[showPicker] = campo;
+                      setMapping(newMapping);
+                      setShowPicker(null);
+                    }
+                  }}>
+                  <Text style={[styles.modalOptionText, {color: ctxColors.textPrimary}]}>
+                    {CAMPOS_LABELS[campo]}
+                    {Object.values(mapping).includes(campo) ? ' ✓' : ''}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
             <TouchableOpacity
-              style={[styles.modalCancel, {backgroundColor: colors.primaryBg}]}
+              style={[styles.modalCancel, {backgroundColor: ctxColors.primaryBg}]}
               onPress={() => setShowPicker(null)}>
-              <Text style={[styles.modalCancelText, {color: colors.primary}]}>Cancelar</Text>
+              <Text style={[styles.modalCancelText, {color: ctxColors.primary}]}>
+                Cancelar
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -265,17 +287,7 @@ const styles = StyleSheet.create({
   pickBtnText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  clearBtn: {
-    marginTop: 16,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  clearBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
   sectionTitle: {
     fontSize: 18,
@@ -302,6 +314,7 @@ const styles = StyleSheet.create({
   },
   colArrow: {
     fontSize: 16,
+    color: '#64748B',
     marginHorizontal: 8,
   },
   colField: {
@@ -337,12 +350,14 @@ const styles = StyleSheet.create({
   importBtnText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   disabled: {
     opacity: 0.6,
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -350,6 +365,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  modalScroll: {
+    maxHeight: 400,
   },
   modalTitle: {
     fontSize: 18,

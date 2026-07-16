@@ -1,6 +1,8 @@
 import {createContext, useContext, useState, useCallback, type ReactNode} from 'react';
+import {generateId} from '../utils/uuid';
 
-interface User {
+export interface User {
+  id: string;
   username: string;
   nombre: string;
   cargo: string;
@@ -16,6 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const ADMIN_USER: User = {
+  id: generateId(),
   username: 'admin',
   nombre: 'Administrador',
   cargo: 'Administrador del Sistema',

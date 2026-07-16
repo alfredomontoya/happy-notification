@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 import {Persona} from '../database/types';
 import {getAllPersonas} from '../database/personas';
 import {
@@ -52,6 +52,7 @@ function getDaysDiff(date: Date) {
 // ===============================
 
 export default function HomeScreen({navigation}: any) {
+  const {colors} = useTheme();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [query, setQuery] = useState('');
   const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>(null);
@@ -148,7 +149,7 @@ useEffect(() => {
 // ===============================
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.primaryBg}]}>
       {showBanner && (
         <NotificationBanner
           message={
@@ -161,7 +162,7 @@ useEffect(() => {
         />
       )}
 
-      <View style={styles.header}>
+      <View style={[styles.header, {backgroundColor: colors.primary}]}>
         <View style={styles.headerRow}>
           <TouchableOpacity
             onPress={() => navigation.openDrawer()}
@@ -170,7 +171,7 @@ useEffect(() => {
           </TouchableOpacity>
           <Image
             source={require('../assets/logo.png')}
-            style={styles.logo}
+            style={[styles.logo, {backgroundColor: colors.white}]}
             resizeMode="contain"
           />
           <View>
@@ -183,7 +184,10 @@ useEffect(() => {
 
       <View style={styles.searchContainer}>
         <TextInput
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            {backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border},
+          ]}
           placeholder="Buscar por nombre o CI..."
           placeholderTextColor={colors.textSecondary}
           value={query}
@@ -209,7 +213,7 @@ useEffect(() => {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📋</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, {color: colors.textSecondary}]}>
               No se encontraron personas
             </Text>
           </View>
@@ -218,7 +222,7 @@ useEffect(() => {
 
       <View style={styles.fabContainer}>
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, {backgroundColor: colors.primary}]}
           onPress={() => navigation.navigate('Form', {persona: null})}>
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
@@ -235,10 +239,8 @@ useEffect(() => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primaryBg,
   },
   header: {
-    backgroundColor: colors.primary,
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 16,
@@ -254,12 +256,11 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.white,
   },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: colors.white,
+    color: '#FFFFFF',
   },
   subtitle: {
     fontSize: 14,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   },
   menuIcon: {
     fontSize: 24,
-    color: colors.white,
+    color: '#FFFFFF',
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -287,14 +288,11 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   searchInput: {
-    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 15,
-    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: colors.border,
     elevation: 2,
   },
   list: {
@@ -311,7 +309,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: colors.textSecondary,
   },
   fabContainer: {
     position: 'absolute',
@@ -325,13 +322,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   fabText: {
     fontSize: 24,
-    color: colors.white,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

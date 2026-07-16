@@ -1,14 +1,18 @@
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {format, parse} from 'date-fns';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 
 interface Props {
   persona: {
-    id: number;
+    id: number | string;
     ci: string;
-    nombre: string;
+    nombre?: string;
+    nombres?: string;
+    apellidos?: string;
     cargo: string;
-    dependencia: string;
+    dependencia?: string;
+    edificio?: string;
+    nro?: string;
     fecha_nacimiento?: string;
   };
   onPress: () => void;
@@ -16,12 +20,20 @@ interface Props {
 }
 
 export default function PersonaCard({persona, onPress, showBirthday = true}: Props) {
-  const iniciales = persona.nombre
+  const {colors} = useTheme();
+  const nombreCompleto =
+    persona.nombres
+      ? (persona.nombres + ' ' + (persona.apellidos ?? '')).trim()
+      : persona.nombre ?? '';
+
+  const iniciales = nombreCompleto
     .split(' ')
     .map(n => n[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
+
+  const badgeLabel = persona.edificio ?? persona.dependencia ?? '';
 
   const fechaFormateada = showBirthday && persona.fecha_nacimiento
     ? (() => {
@@ -37,30 +49,36 @@ export default function PersonaCard({persona, onPress, showBirthday = true}: Pro
     : null;
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{iniciales}</Text>
+    <TouchableOpacity style={[styles.card, {backgroundColor: colors.surface}]} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.avatar, {backgroundColor: colors.primaryBg}]}>
+        <Text style={[styles.avatarText, {color: colors.primary}]}>{iniciales}</Text>
       </View>
       <View style={styles.info}>
-        <Text style={styles.nombre} numberOfLines={1}>
-          {persona.nombre}
+        <Text style={[styles.nombre, {color: colors.textPrimary}]} numberOfLines={1}>
+          {nombreCompleto}
         </Text>
-        <Text style={styles.cargo} numberOfLines={1}>
+        <Text style={[styles.cargo, {color: colors.textSecondary}]} numberOfLines={1}>
           {persona.cargo}
         </Text>
         <View style={styles.footer}>
-          <Text style={styles.ci}>CI: {persona.ci}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText} numberOfLines={1}>
-              {persona.dependencia}
-            </Text>
-          </View>
+          {persona.nro ? (
+            <Text style={[styles.ci, {color: colors.textSecondary}]}>Nro: {persona.nro}</Text>
+          ) : (
+            <Text style={[styles.ci, {color: colors.textSecondary}]}>CI: {persona.ci}</Text>
+          )}
+          {badgeLabel ? (
+            <View style={[styles.badge, {backgroundColor: colors.primaryBg}]}>
+              <Text style={[styles.badgeText, {color: colors.primaryDark}]} numberOfLines={1}>
+                {badgeLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
         {fechaFormateada && (
-          <Text style={styles.fecha}>🎂 {fechaFormateada}</Text>
+          <Text style={[styles.fecha, {color: colors.textSecondary}]}>🎂 {fechaFormateada}</Text>
         )}
       </View>
-      <Text style={styles.arrow}>›</Text>
+      <Text style={[styles.arrow, {color: colors.border}]}>›</Text>
     </TouchableOpacity>
   );
 }
@@ -69,7 +87,6 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginVertical: 4,
     padding: 16,
@@ -84,7 +101,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primaryBg,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -92,7 +108,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
   },
   info: {
     flex: 1,
@@ -100,11 +115,9 @@ const styles = StyleSheet.create({
   nombre: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
   },
   cargo: {
     fontSize: 13,
-    color: colors.textSecondary,
     marginTop: 2,
   },
   footer: {
@@ -115,10 +128,8 @@ const styles = StyleSheet.create({
   },
   ci: {
     fontSize: 12,
-    color: colors.textSecondary,
   },
   badge: {
-    backgroundColor: colors.primaryBg,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
@@ -126,17 +137,14 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    color: colors.primaryDark,
     fontWeight: '500',
   },
   fecha: {
     fontSize: 12,
-    color: colors.textSecondary,
     marginTop: 4,
   },
   arrow: {
     fontSize: 24,
-    color: colors.border,
     marginLeft: 8,
   },
 });

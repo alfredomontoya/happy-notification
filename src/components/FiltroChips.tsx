@@ -1,5 +1,5 @@
 import {ScrollView, StyleSheet, Text, TouchableOpacity} from 'react-native';
-import {colors} from '../theme/colors';
+import {useTheme} from '../context/ThemeContext';
 import {FiltroFecha} from '../utils/filtros';
 
 interface Props {
@@ -15,6 +15,7 @@ const chips: {key: FiltroFecha; label: string; icon: string}[] = [
 ];
 
 export default function FiltroChips({filtroActivo, onChange}: Props) {
+  const {colors} = useTheme();
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.container}>
       {chips.map(chip => {
@@ -22,13 +23,25 @@ export default function FiltroChips({filtroActivo, onChange}: Props) {
         return (
           <TouchableOpacity
             key={chip.key ?? 'todos'}
-            style={[styles.chip, activo && styles.chipActivo]}
+            style={[
+              styles.chip,
+              {backgroundColor: colors.surface, borderColor: colors.border},
+              activo && {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+              },
+            ]}
             onPress={() => {
               console.log('FiltroChips:onPress', chip.key);
               onChange(activo ? null : chip.key);
             }}>
             <Text style={styles.icon}>{chip.icon}</Text>
-            <Text style={[styles.label, activo && styles.labelActivo]}>
+            <Text
+              style={[
+                styles.label,
+                {color: colors.textSecondary},
+                activo && {color: colors.white},
+              ]}>
               {chip.label}
             </Text>
           </TouchableOpacity>
@@ -52,13 +65,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 20,
-    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActivo: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   icon: {
     fontSize: 14,
@@ -67,9 +74,5 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  labelActivo: {
-    color: colors.white,
   },
 });

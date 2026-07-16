@@ -2,6 +2,7 @@ import {useEffect} from 'react';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer} from '@react-navigation/native';
 import notifee from '@notifee/react-native';
+import Toast from 'react-native-toast-message';
 import {AuthProvider, useAuth} from './src/context/AuthContext';
 import {ThemeProvider, useTheme} from './src/context/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -54,13 +55,14 @@ function App() {
   }, []);
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppContent />
+            <Toast />
+          </AuthProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
   );
 }
 

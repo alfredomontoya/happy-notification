@@ -30,14 +30,37 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   `);
 
   await db.executeSql(`
+    CREATE TABLE IF NOT EXISTS gestiones (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      titulo TEXT NOT NULL,
+      descripcion TEXT DEFAULT '',
+      estado TEXT DEFAULT 'activo',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+
+  await db.executeSql(`
     CREATE TABLE IF NOT EXISTS funcionarios (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      gestion_id TEXT NOT NULL,
+      nro TEXT DEFAULT '',
       ci TEXT DEFAULT '',
-      nombre TEXT NOT NULL,
+      nombres TEXT NOT NULL,
+      apellidos TEXT DEFAULT '',
       cargo TEXT DEFAULT '',
-      dependencia TEXT DEFAULT '',
-      telefono TEXT DEFAULT '',
-      email TEXT DEFAULT ''
+      edificio TEXT DEFAULT '',
+      tipo TEXT DEFAULT '',
+      responsable TEXT DEFAULT '',
+      telresponsable TEXT DEFAULT '',
+      estado TEXT DEFAULT 'activo',
+      entregado INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (gestion_id) REFERENCES gestiones(id)
     )
   `);
 
