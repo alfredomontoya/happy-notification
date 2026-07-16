@@ -78,4 +78,5 @@ yarn-error.log
 *.csv
 *.xlsx
 !assets/*.xlsx
-!data/
+!data/*.csv
+!data/*.xlsx
