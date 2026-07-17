@@ -1,47 +1,71 @@
-import {createContext, useContext, useState, useCallback, type ReactNode} from 'react';
-import {generateId} from '../utils/uuid';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from 'react';
+import auth from '@react-native-firebase/auth';
+import {UserProfile} from '../database/types';
+import {
+  getUserById,
+  getUserByUsername,
+  createAdminUserIfNotExists,
+} from '../database/usuarios';
 
-export interface User {
-  id: string;
-  username: string;
-  nombre: string;
-  cargo: string;
-  email: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (username: string, password: string) => boolean;
-  logout: () => void;
-}
+  interface AuthContextType {
+    user: UserProfile | null;
+    loading: boolean;
+    login: (usernameOrEmail: string, password: string) => Promise<void>;
+    logout: () => Promise<void>;
+  }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const ADMIN_USER: User = {
-  id: generateId(),
-  username: 'admin',
-  nombre: 'Administrador',
-  cargo: 'Administrador del Sistema',
-  email: 'admin@stmsc.gob.bo',
-};
-
 export function AuthProvider({children}: {children: ReactNode}) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = useCallback((username: string, password: string): boolean => {
-    if (username === 'admin' && password === 'admin') {
-      setUser(ADMIN_USER);
-      return true;
-    }
-    return false;
+  useEffect(() => {
+    createAdminUserIfNotExists();
   }, []);
 
-  const logout = useCallback(() => {
+  useEffect(() => {
+    const unsubscribe = auth().onAuthStateChanged(async firebaseUser => {
+      if (firebaseUser) {
+        const profile = await getUserById(firebaseUser.uid);
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  const login = useCallback(
+    async (usernameOrEmail: string, password: string) => {
+      let email = usernameOrEmail;
+      if (!email.includes('@')) {
+        const profile = await getUserByUsername(email);
+        if (!profile) {
+          throw {code: 'user-not-found'};
+        }
+        email = profile.email;
+      }
+      await auth().signInWithEmailAndPassword(email, password);
+    },
+    [],
+  );
+
+  const logout = useCallback(async () => {
+    await auth().signOut();
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{user, login, logout}}>
+    <AuthContext.Provider value={{user, loading, login, logout}}>
       {children}
     </AuthContext.Provider>
   );

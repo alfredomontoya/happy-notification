@@ -86,7 +86,7 @@ export default function ImportExcelFuncionariosScreen({route, navigation}: any) 
         headers,
         rows,
         mapping,
-        user?.id ?? '',
+        user?.uid ?? '',
         gestionId,
       );
       let count = 0;

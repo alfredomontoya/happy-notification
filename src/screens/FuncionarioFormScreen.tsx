@@ -44,7 +44,7 @@ export default function FuncionarioFormScreen({route, navigation}: any) {
     }
 
     const data: any = {
-      user_id: user?.id ?? '',
+      user_id: user?.uid ?? '',
       gestion_id: gestionId,
       nro: nro.trim(),
       ci: ci.trim(),

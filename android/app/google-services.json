@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "583005189221",
+    "project_id": "sindicato-1a696",
+    "storage_bucket": "sindicato-1a696.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:583005189221:android:811f3507401d08f0adc28c",
+        "android_client_info": {
+          "package_name": "com.stmsc.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBW7wO_dg_3NTLJTilhCQpY5MTZXbUBwi0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

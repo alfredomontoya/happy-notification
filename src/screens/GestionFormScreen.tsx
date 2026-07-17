@@ -62,7 +62,7 @@ export default function GestionFormScreen({route, navigation}: any) {
       });
     } else {
       await createGestion({
-        user_id: user?.id ?? '',
+        user_id: user?.uid ?? '',
         year: yearNum,
         titulo: titulo.trim(),
         descripcion: descripcion.trim(),

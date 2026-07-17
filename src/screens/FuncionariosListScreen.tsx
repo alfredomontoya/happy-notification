@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {
   FlatList,
   StyleSheet,
@@ -6,26 +6,34 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import {useTheme} from '../context/ThemeContext';
 import {Funcionario, Gestion} from '../database/types';
-import {getFuncionariosByGestion} from '../database/funcionarios';
+import {buscarFuncionarios} from '../database/funcionarios';
 import {getAllGestiones} from '../database/gestion';
 import PersonaCard from '../components/PersonaCard';
 
 export default function FuncionariosListScreen({navigation}: any) {
   const {colors} = useTheme();
   const [gestiones, setGestiones] = useState<Gestion[]>([]);
-  const [selectedGestionId, setSelectedGestionId] = useState<string | null>(null);
+  const [selectedGestionId, setSelectedGestionId] = useState<string | null>(
+    null,
+  );
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [query, setQuery] = useState('');
+  const [buscando, setBuscando] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cargarGestiones = useCallback(async () => {
     const data = await getAllGestiones();
     const activas = data.filter(g => g.estado === 'activo');
     setGestiones(activas);
     if (activas.length > 0) {
-      if (!selectedGestionId || !activas.some(g => g.id === selectedGestionId)) {
+      if (
+        !selectedGestionId ||
+        !activas.some(g => g.id === selectedGestionId)
+      ) {
         setSelectedGestionId(activas[0].id);
       }
     } else {
@@ -33,42 +41,57 @@ export default function FuncionariosListScreen({navigation}: any) {
     }
   }, [selectedGestionId]);
 
-  const cargarDatos = useCallback(async () => {
-    if (!selectedGestionId) {
-      setFuncionarios([]);
-      return;
-    }
-    const data = await getFuncionariosByGestion(selectedGestionId);
-    setFuncionarios(data);
-  }, [selectedGestionId]);
-
   useEffect(() => {
     cargarGestiones();
   }, [cargarGestiones]);
 
   useEffect(() => {
-    cargarDatos();
-  }, [cargarDatos]);
-
-  useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       cargarGestiones();
-      cargarDatos();
     });
     return unsubscribe;
-  }, [navigation, cargarGestiones, cargarDatos]);
+  }, [navigation, cargarGestiones]);
 
-  const filtradas = funcionarios.filter(f => {
-    if (!query.trim()) return true;
-    const q = query.toLowerCase();
-    return (
-      f.nombres.toLowerCase().includes(q) ||
-      f.apellidos.toLowerCase().includes(q) ||
-      f.ci.toLowerCase().includes(q) ||
-      f.nro.toLowerCase().includes(q) ||
-      f.cargo.toLowerCase().includes(q)
-    );
-  });
+  const ejecutarBusqueda = useCallback(
+    async (texto: string, gestionId: string) => {
+      if (!texto.trim() || !gestionId) {
+        setFuncionarios([]);
+        return;
+      }
+      setBuscando(true);
+      try {
+        const results = await buscarFuncionarios(gestionId, texto);
+        setFuncionarios(results);
+      } finally {
+        setBuscando(false);
+      }
+    },
+    [],
+  );
+
+  const handleSearch = useCallback(
+    (text: string) => {
+      setQuery(text);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        if (selectedGestionId) {
+          ejecutarBusqueda(text, selectedGestionId);
+        }
+      }, 300);
+    },
+    [ejecutarBusqueda, selectedGestionId],
+  );
+
+  const handleGestionChange = useCallback(
+    (id: string) => {
+      setSelectedGestionId(id);
+      setFuncionarios([]);
+      setQuery('');
+    },
+    [],
+  );
 
   const gestionActual = gestiones.find(g => g.id === selectedGestionId);
 
@@ -86,7 +109,7 @@ export default function FuncionariosListScreen({navigation}: any) {
             <Text style={styles.subtitle}>
               {gestionActual
                 ? gestionActual.titulo + ' (' + gestionActual.year + ')'
-                : 'Lista de funcionarios registrados'}
+                : 'Buscar funcionarios'}
             </Text>
           </View>
         </View>
@@ -100,16 +123,20 @@ export default function FuncionariosListScreen({navigation}: any) {
               styles.gestionChip,
               {
                 backgroundColor:
-                  selectedGestionId === g.id ? colors.primary : colors.surface,
+                  selectedGestionId === g.id
+                    ? colors.primary
+                    : colors.surface,
               },
             ]}
-            onPress={() => setSelectedGestionId(g.id)}>
+            onPress={() => handleGestionChange(g.id)}>
             <Text
               style={[
                 styles.gestionChipText,
                 {
                   color:
-                    selectedGestionId === g.id ? '#FFFFFF' : colors.textPrimary,
+                    selectedGestionId === g.id
+                      ? '#FFFFFF'
+                      : colors.textPrimary,
                 },
               ]}>
               {g.titulo} ({g.year})
@@ -122,17 +149,30 @@ export default function FuncionariosListScreen({navigation}: any) {
         <TextInput
           style={[
             styles.searchInput,
-            {backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border},
+            {
+              backgroundColor: colors.surface,
+              color: colors.textPrimary,
+              borderColor: colors.border,
+            },
           ]}
-          placeholder="Buscar funcionario..."
+          placeholder="Buscar por nombre, CI o nro..."
           placeholderTextColor={colors.textSecondary}
           value={query}
-          onChangeText={setQuery}
+          onChangeText={handleSearch}
+          autoCapitalize="none"
         />
       </View>
 
+      {buscando && (
+        <ActivityIndicator
+          size="small"
+          color={colors.primary}
+          style={styles.spinner}
+        />
+      )}
+
       <FlatList
-        data={filtradas}
+        data={funcionarios}
         keyExtractor={item => item.id}
         renderItem={({item}) => (
           <PersonaCard
@@ -155,9 +195,13 @@ export default function FuncionariosListScreen({navigation}: any) {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>👥</Text>
+            <Text style={styles.emptyIcon}>
+              {query.trim() ? '🔍' : '👥'}
+            </Text>
             <Text style={[styles.emptyText, {color: colors.textSecondary}]}>
-              No se encontraron funcionarios
+              {query.trim()
+                ? 'No se encontraron funcionarios'
+                : 'Escribe para buscar funcionarios'}
             </Text>
           </View>
         }
@@ -257,6 +301,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     elevation: 2,
+  },
+  spinner: {
+    marginVertical: 8,
   },
   list: {
     paddingTop: 8,

@@ -1,10 +1,34 @@
 export interface Persona {
-  id: number;
+  id: string;
   ci: string;
   nombre: string;
   cargo: string;
   dependencia: string;
   fecha_nacimiento: string;
+  birthday_month?: number;
+  birthday_day?: number;
+  created_at: string;
+}
+
+export type PermissionLevel = 'none' | 'read' | 'write' | 'admin';
+
+export interface Permissions {
+  cumpleanios: PermissionLevel;
+  funcionarios: PermissionLevel;
+  gestiones: PermissionLevel;
+  configuracion: PermissionLevel;
+}
+
+export interface UserProfile {
+  uid: string;
+  username: string;
+  nombre: string;
+  email: string;
+  cargo: string;
+  role: 'admin' | 'user';
+  permissions: Permissions;
+  created_at: string;
+  created_by: string;
 }
 
 export interface Gestion {
@@ -33,6 +57,7 @@ export interface Funcionario {
   telresponsable: string;
   estado: string;
   entregado: number;
+  search_tokens?: string[];
   created_at: string;
   updated_at: string;
 }

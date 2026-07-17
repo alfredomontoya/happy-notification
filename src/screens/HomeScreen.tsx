@@ -1,7 +1,8 @@
-import {useCallback, useEffect, useState} from 'react';
+import {useCallback, useEffect, useRef, useState} from 'react';
 import {
   FlatList,
   Image,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -10,11 +11,13 @@ import {
 } from 'react-native';
 import {useTheme} from '../context/ThemeContext';
 import {Persona} from '../database/types';
-import {getAllPersonas} from '../database/personas';
 import {
-  filtrarPersonas,
-  FiltroFecha,
-} from '../utils/filtros';
+  getAllPersonas,
+  getPersonasByMonth,
+  getPersonasByDay,
+} from '../database/personas';
+import {getCachedPersonas} from '../database/personasCache';
+import {FiltroFecha} from '../utils/filtros';
 import {format} from 'date-fns';
 import {es} from 'date-fns/locale';
 import PersonaCard from '../components/PersonaCard';
@@ -22,21 +25,13 @@ import FiltroChips from '../components/FiltroChips';
 import NotificationBanner from '../components/NotificationBanner';
 import {showBirthdayNotification} from '../services/notifications';
 
-
-// ===============================
-// 🧠 HELPERS BANNER
-// ===============================
-
 function getNextBirthdayDate(fecha: Date): Date {
   const hoy = new Date();
   const cumple = new Date(fecha);
-
   cumple.setFullYear(hoy.getFullYear());
-
   if (cumple.getTime() < hoy.getTime()) {
     cumple.setFullYear(hoy.getFullYear() + 1);
   }
-
   return cumple;
 }
 
@@ -46,10 +41,10 @@ function getDaysDiff(date: Date) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-
-// ===============================
-// 📱 COMPONENTE
-// ===============================
+function getMonthDay(): {month: number; day: number} {
+  const hoy = new Date();
+  return {month: hoy.getMonth() + 1, day: hoy.getDate()};
+}
 
 export default function HomeScreen({navigation}: any) {
   const {colors} = useTheme();
@@ -58,11 +53,25 @@ export default function HomeScreen({navigation}: any) {
   const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [bannerData, setBannerData] = useState<{names: string[]}>({names: []});
+  const [refreshing, setRefreshing] = useState(false);
+  const cargando = useRef(false);
 
   const cargarDatos = useCallback(async () => {
-    const data = await getAllPersonas();
-    setPersonas(data);
+    if (cargando.current) return;
+    cargando.current = true;
+    try {
+      const data = await getAllPersonas();
+      setPersonas(data);
+    } finally {
+      cargando.current = false;
+    }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await cargarDatos();
+    setRefreshing(false);
+  }, [cargarDatos]);
 
   useEffect(() => {
     cargarDatos();
@@ -70,83 +79,98 @@ export default function HomeScreen({navigation}: any) {
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      cargarDatos();
+      const cached = getCachedPersonas();
+      if (cached) {
+        setPersonas(cached);
+      } else {
+        cargarDatos();
+      }
     });
     return unsubscribe;
   }, [navigation, cargarDatos]);
 
+  useEffect(() => {
+    if (personas.length === 0) return;
 
-// ===============================
-// 🎉 BANNER INTELIGENTE
-// ===============================
+    const {month, day} = getMonthDay();
 
-useEffect(() => {
-  if (personas.length === 0) return;
-
-  const hoy = new Date();
-
-  // 🎯 HOY
-  const hoyCumple = personas.filter(p => {
-    const fn = new Date(p.fecha_nacimiento);
-    return (
-      fn.getMonth() === hoy.getMonth() &&
-      fn.getDate() === hoy.getDate()
-    );
-  });
-
-  if (hoyCumple.length > 0) {
-    const names = hoyCumple.map(p => p.nombre);
-    setBannerData({names});
-    setShowBanner(true);
-
-    showBirthdayNotification(names);
-
-    return;
-  }
-
-  // 📅 SEMANA (fallback)
-  const proximos = personas
-    .map(p => {
-      const next = getNextBirthdayDate(new Date(p.fecha_nacimiento));
-      return {
-        ...p,
-        next,
-        diff: getDaysDiff(next),
-      };
-    })
-    .filter(p => p.diff >= 0 && p.diff <= 7)
-    .sort((a, b) => a.diff - b.diff);
-
-  if (proximos.length > 0) {
-    setBannerData({
-      names: proximos.map(p => {
-        if (p.diff === 0) return `${p.nombre} (hoy)`;
-        if (p.diff === 1) return `${p.nombre} (mañana)`;
-        return `${p.nombre} (en ${p.diff} días)`;
-      }),
+    const hoyCumple = personas.filter(p => {
+      if (p.birthday_month && p.birthday_day) {
+        return p.birthday_month === month && p.birthday_day === day;
+      }
+      const fn = new Date(p.fecha_nacimiento);
+      return fn.getMonth() + 1 === month && fn.getDate() === day;
     });
-    setShowBanner(true);
-    return;
-  }
 
-  setShowBanner(false);
-}, [personas]);
+    if (hoyCumple.length > 0) {
+      const names = hoyCumple.map(p => p.nombre);
+      setBannerData({names});
+      setShowBanner(true);
+      showBirthdayNotification(names);
+      return;
+    }
 
+    const proximos = personas
+      .map(p => {
+        const next = getNextBirthdayDate(new Date(p.fecha_nacimiento));
+        return {...p, next, diff: getDaysDiff(next)};
+      })
+      .filter(p => p.diff >= 0 && p.diff <= 7)
+      .sort((a, b) => a.diff - b.diff);
 
-// ===============================
-// 🔍 FILTRO LISTA
-// ===============================
+    if (proximos.length > 0) {
+      setBannerData({
+        names: proximos.map(p => {
+          if (p.diff === 0) return `${p.nombre} (hoy)`;
+          if (p.diff === 1) return `${p.nombre} (mañana)`;
+          return `${p.nombre} (en ${p.diff} días)`;
+        }),
+      });
+      setShowBanner(true);
+      return;
+    }
+
+    setShowBanner(false);
+  }, [personas]);
+
+  const handleChipChange = useCallback((filtro: FiltroFecha) => {
+    setFiltroFecha(filtro);
+
+    if (filtro === 'hoy') {
+      const {month, day} = getMonthDay();
+      getPersonasByDay(month, day).then(setPersonas);
+    } else if (filtro === 'mes') {
+      const {month} = getMonthDay();
+      getPersonasByMonth(month).then(setPersonas);
+    } else {
+      getAllPersonas().then(setPersonas);
+    }
+  }, []);
+
+  const filtradas = (() => {
+    let result: Persona[];
+
+    if (filtroFecha === 'hoy' || filtroFecha === 'mes') {
+      result = personas;
+    } else {
+      result = personas;
+    }
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      result = result.filter(
+        p =>
+          p.nombre.toLowerCase().includes(q) ||
+          p.ci.toLowerCase().includes(q),
+      );
+    }
+
+    return result;
+  })();
 
   const fechaActual = format(new Date(), "EEEE d 'de' MMMM yyyy, HH:mm", {
     locale: es,
   });
-
-  const filtradas = filtrarPersonas(personas, query, filtroFecha);
-
-
-// ===============================
-// 🎨 UI
-// ===============================
 
   return (
     <View style={[styles.container, {backgroundColor: colors.primaryBg}]}>
@@ -186,7 +210,11 @@ useEffect(() => {
         <TextInput
           style={[
             styles.searchInput,
-            {backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border},
+            {
+              backgroundColor: colors.surface,
+              color: colors.textPrimary,
+              borderColor: colors.border,
+            },
           ]}
           placeholder="Buscar por nombre o CI..."
           placeholderTextColor={colors.textSecondary}
@@ -195,21 +223,27 @@ useEffect(() => {
         />
       </View>
 
-      <FiltroChips filtroActivo={filtroFecha} onChange={setFiltroFecha} />
+      <FiltroChips filtroActivo={filtroFecha} onChange={handleChipChange} />
 
       <FlatList
         data={filtradas}
-        keyExtractor={item => String(item.id)}
+        keyExtractor={item => item.id}
         renderItem={({item}) => (
           <PersonaCard
             persona={item}
-            onPress={() =>
-              navigation.navigate('Detail', {persona: item})
-            }
+            onPress={() => navigation.navigate('Detail', {persona: item})}
           />
         )}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📋</Text>
@@ -231,15 +265,8 @@ useEffect(() => {
   );
 }
 
-
-// ===============================
-// 🎨 ESTILOS
-// ===============================
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: {flex: 1},
   header: {
     paddingTop: 50,
     paddingBottom: 20,
@@ -252,21 +279,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
-  },
+  logo: {width: 48, height: 48, borderRadius: 24},
+  title: {fontSize: 22, fontWeight: '700', color: '#FFFFFF'},
+  subtitle: {fontSize: 14, color: 'rgba(255,255,255,0.8)', marginTop: 2},
   headerDate: {
     flex: 1,
     textAlign: 'right',
@@ -274,19 +289,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  menuBtn: {
-    marginLeft: 8,
-    padding: 4,
-  },
-  menuIcon: {
-    fontSize: 24,
-    color: '#FFFFFF',
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 4,
-  },
+  menuBtn: {marginLeft: 8, padding: 4},
+  menuIcon: {fontSize: 24, color: '#FFFFFF'},
+  searchContainer: {paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4},
   searchInput: {
     borderRadius: 16,
     paddingHorizontal: 16,
@@ -295,21 +300,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 2,
   },
-  list: {
-    paddingTop: 8,
-    paddingBottom: 100,
-  },
-  empty: {
-    alignItems: 'center',
-    marginTop: 80,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 16,
-  },
+  list: {paddingTop: 8, paddingBottom: 100},
+  empty: {alignItems: 'center', marginTop: 80},
+  emptyIcon: {fontSize: 48, marginBottom: 12},
+  emptyText: {fontSize: 16},
   fabContainer: {
     position: 'absolute',
     bottom: 24,
@@ -325,9 +319,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  fabText: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
+  fabText: {fontSize: 24, color: '#FFFFFF', fontWeight: '600'},
 });

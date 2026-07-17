@@ -2,12 +2,7 @@ import {useTheme} from '../context/ThemeContext';
 import {useAuth} from '../context/AuthContext';
 import {createDrawerNavigator} from '@react-navigation/drawer';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 
 import HomeScreen from '../screens/HomeScreen';
 import DetailScreen from '../screens/DetailScreen';
@@ -22,6 +17,8 @@ import GestionListScreen from '../screens/GestionListScreen';
 import GestionFormScreen from '../screens/GestionFormScreen';
 import ConfiguracionScreen from '../screens/ConfiguracionScreen';
 import PerfilScreen from '../screens/PerfilScreen';
+import UsuariosScreen from '../screens/UsuariosScreen';
+import UsuarioFormScreen from '../screens/UsuarioFormScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -179,17 +176,61 @@ function PerfilStack() {
   );
 }
 
+function UsuariosStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {backgroundColor: '#0D9488'},
+        headerTintColor: '#FFFFFF',
+        headerTitleStyle: {fontWeight: '600'},
+        contentStyle: {backgroundColor: '#F0FDF4'},
+      }}>
+      <Stack.Screen
+        name="UsuariosList"
+        component={UsuariosScreen}
+        options={{headerShown: false}}
+      />
+      <Stack.Screen
+        name="UsuarioForm"
+        component={UsuarioFormScreen}
+        options={({route}: any) => ({
+          title: route.params?.usuario ? 'Editar usuario' : 'Nuevo usuario',
+        })}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function CustomDrawerContent({navigation}: any) {
   const {colors} = useTheme();
   const {user} = useAuth();
+  const isAdmin = user?.role === 'admin';
 
-  const items = [
-    {label: '🎂 Cumpleaños', screen: 'Cumpleaños'},
-    {label: '👥 Funcionarios', screen: 'Funcionarios'},
-    {label: '📁 Gestión', screen: 'Gestión'},
-    {label: '⚙️ Configuración', screen: 'Configuración'},
+  type PermissionKeys = 'cumpleanios' | 'funcionarios' | 'gestiones' | 'configuracion';
+
+  interface DrawerItem {
+    label: string;
+    screen: string;
+    permission?: PermissionKeys;
+  }
+
+  const allItems: DrawerItem[] = [
+    {label: '🎂 Cumpleaños', screen: 'Cumpleaños', permission: 'cumpleanios'},
+    {label: '👥 Funcionarios', screen: 'Funcionarios', permission: 'funcionarios'},
+    {label: '📁 Gestión', screen: 'Gestión', permission: 'gestiones'},
+    {label: '⚙️ Configuración', screen: 'Configuración', permission: 'configuracion'},
     {label: '👤 Perfil', screen: 'Perfil'},
   ];
+
+  if (isAdmin) {
+    allItems.push({label: '🔐 Usuarios', screen: 'Usuarios'});
+  }
+
+  const visibleItems = allItems.filter(item => {
+    if (!item.permission || isAdmin) return true;
+    const level = user?.permissions?.[item.permission];
+    return level && level !== 'none';
+  });
 
   return (
     <View style={[styles.drawerContainer, {backgroundColor: colors.primaryBg}]}>
@@ -210,7 +251,7 @@ function CustomDrawerContent({navigation}: any) {
       </View>
 
       <View style={styles.drawerItems}>
-        {items.map(item => (
+        {visibleItems.map(item => (
           <TouchableOpacity
             key={item.screen}
             style={[styles.drawerItem, {borderBottomColor: colors.border}]}
@@ -244,6 +285,7 @@ export default function AppNavigator() {
       <Drawer.Screen name="Gestión" component={GestionStack} />
       <Drawer.Screen name="Configuración" component={ConfiguracionStack} />
       <Drawer.Screen name="Perfil" component={PerfilStack} />
+      <Drawer.Screen name="Usuarios" component={UsuariosStack} />
     </Drawer.Navigator>
   );
 }

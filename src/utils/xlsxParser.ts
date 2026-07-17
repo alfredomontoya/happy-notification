@@ -66,7 +66,7 @@ export function parseSheetToPersonas(
   headers: string[],
   rows: RowData[],
   mapping: Record<string, string>,
-): Omit<Persona, 'id'>[] {
+): Omit<Persona, 'id' | 'created_at' | 'birthday_month' | 'birthday_day'>[] {
   return rows.map(row => {
     const persona: any = {};
     Object.entries(mapping).forEach(([colIdx, campo]) => {

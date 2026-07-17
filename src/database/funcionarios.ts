@@ -1,112 +1,188 @@
-import {Funcionario} from './types';
-import {getDatabase} from './init';
-import {generateId} from '../utils/uuid';
+import {getFirestoreDB} from './firebase';
+import type {Funcionario} from './types';
+import type {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';
+import {
+  getCachedFuncionarios,
+  setCachedFuncionarios,
+  invalidateFuncionariosCache,
+} from './funcionariosCache';
+
+const COLLECTION = 'funcionarios';
+const BUSQUEDA_LIMITE = 20;
+
+function collectionRef() {
+  return getFirestoreDB().collection(COLLECTION);
+}
+
+function generateSearchTokens(f: {
+  nombres: string;
+  apellidos: string;
+  ci: string;
+  nro: string;
+}): string[] {
+  const tokens = new Set<string>();
+  const add = (v: string) => {
+    const t = v.toLowerCase().trim();
+    if (t) {
+      tokens.add(t);
+      t.split(/\s+/).forEach(p => tokens.add(p));
+    }
+  };
+  add(f.nombres + ' ' + f.apellidos);
+  add(f.ci);
+  add(f.nro);
+  return Array.from(tokens);
+}
 
 export async function getFuncionariosByGestion(
   gestionId: string,
 ): Promise<Funcionario[]> {
-  const db = await getDatabase();
-  const [result] = await db.executeSql(
-    'SELECT * FROM funcionarios WHERE gestion_id = ? ORDER BY nro ASC',
-    [gestionId],
-  );
+  const cached = getCachedFuncionarios(gestionId);
+  if (cached) return cached;
+
+  const snapshot = await collectionRef()
+    .where('gestion_id', '==', gestionId)
+    .orderBy('nro', 'asc')
+    .get();
   const list: Funcionario[] = [];
-  for (let i = 0; i < result.rows.length; i++) {
-    list.push(result.rows.item(i));
-  }
+  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
+    list.push({id: doc.id, ...doc.data()} as Funcionario),
+  );
+  setCachedFuncionarios(gestionId, list);
   return list;
+}
+
+export async function buscarFuncionarios(
+  gestionId: string,
+  texto: string,
+): Promise<Funcionario[]> {
+  const q = texto.trim().toLowerCase();
+  if (!q) return [];
+
+  const db = getFirestoreDB();
+  const seen = new Set<string>();
+  const results: Funcionario[] = [];
+
+  const add = (snapshot: FirebaseFirestoreTypes.QuerySnapshot) => {
+    snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) => {
+      const f = {id: doc.id, ...doc.data()} as Funcionario;
+      if (!seen.has(f.id)) {
+        seen.add(f.id);
+        results.push(f);
+      }
+    });
+  };
+
+  const matches = (
+    q.match(/^[\d-]+$/) ? [q.replace(/-/g, '')] : []
+  );
+
+  for (const exact of matches) {
+    const snap = await collectionRef()
+      .where('gestion_id', '==', gestionId)
+      .where('ci', '==', exact)
+      .limit(BUSQUEDA_LIMITE)
+      .get();
+    add(snap);
+
+    const snapNro = await collectionRef()
+      .where('gestion_id', '==', gestionId)
+      .where('nro', '==', exact)
+      .limit(BUSQUEDA_LIMITE)
+      .get();
+    add(snapNro);
+
+    if (results.length >= BUSQUEDA_LIMITE) break;
+  }
+
+  if (results.length < BUSQUEDA_LIMITE) {
+    const snap = await collectionRef()
+      .where('gestion_id', '==', gestionId)
+      .where('search_tokens', 'array-contains', q)
+      .limit(BUSQUEDA_LIMITE - results.length)
+      .get();
+    add(snap);
+  }
+
+  return results;
 }
 
 export async function getFuncionarioById(
   id: string,
 ): Promise<Funcionario | null> {
-  const db = await getDatabase();
-  const [result] = await db.executeSql(
-    'SELECT * FROM funcionarios WHERE id = ?',
-    [id],
-  );
-  if (result.rows.length === 0) return null;
-  return result.rows.item(0);
+  const doc = await collectionRef().doc(id).get();
+  if (!doc.exists) return null;
+  return {id: doc.id, ...doc.data()} as Funcionario;
 }
 
 export async function createFuncionario(
-  data: Omit<Funcionario, 'id' | 'created_at' | 'updated_at'>,
+  data: Omit<Funcionario, 'id' | 'created_at' | 'updated_at' | 'search_tokens'>,
 ): Promise<string> {
-  const db = await getDatabase();
-  const id = generateId();
   const now = new Date().toISOString();
-  await db.executeSql(
-    'INSERT INTO funcionarios (id, user_id, gestion_id, nro, ci, nombres, apellidos, cargo, edificio, tipo, responsable, telresponsable, estado, entregado, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [
-      id,
-      data.user_id,
-      data.gestion_id,
-      data.nro,
-      data.ci,
-      data.nombres,
-      data.apellidos,
-      data.cargo,
-      data.edificio,
-      data.tipo,
-      data.responsable,
-      data.telresponsable,
-      data.estado,
-      data.entregado,
-      now,
-      now,
-    ],
-  );
-  return id;
+  const tokens = generateSearchTokens(data);
+  const docRef = await collectionRef().add({
+    ...data,
+    search_tokens: tokens,
+    created_at: now,
+    updated_at: now,
+  });
+  invalidateFuncionariosCache(data.gestion_id);
+  return docRef.id;
 }
 
 export async function updateFuncionario(
   id: string,
-  data: Partial<Omit<Funcionario, 'id' | 'created_at'>>,
+  data: Partial<
+    Omit<Funcionario, 'id' | 'created_at' | 'updated_at' | 'search_tokens'>
+  >,
 ): Promise<void> {
-  const db = await getDatabase();
-  const fields: string[] = [];
-  const values: any[] = [];
-  const allowed = [
-    'user_id', 'gestion_id', 'nro', 'ci', 'nombres', 'apellidos',
-    'cargo', 'edificio', 'tipo', 'responsable', 'telresponsable',
-    'estado', 'entregado',
-  ];
-  for (const key of allowed) {
-    if ((data as any)[key] !== undefined) {
-      fields.push(key + ' = ?');
-      values.push((data as any)[key]);
+  const now = new Date().toISOString();
+  const updateData: Record<string, unknown> = {...data, updated_at: now};
+
+  if (data.nombres || data.apellidos || data.ci || data.nro) {
+    const existing = await getFuncionarioById(id);
+    if (existing) {
+      updateData.search_tokens = generateSearchTokens({
+        nombres: data.nombres ?? existing.nombres,
+        apellidos: data.apellidos ?? existing.apellidos,
+        ci: data.ci ?? existing.ci,
+        nro: data.nro ?? existing.nro,
+      });
     }
   }
-  if (fields.length === 0) return;
-  const now = new Date().toISOString();
-  fields.push('updated_at = ?');
-  values.push(now);
-  values.push(id);
-  await db.executeSql(
-    'UPDATE funcionarios SET ' + fields.join(', ') + ' WHERE id = ?',
-    values,
-  );
+
+  await collectionRef().doc(id).update(updateData);
+  invalidateFuncionariosCache(data.gestion_id);
 }
 
 export async function deleteFuncionario(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.executeSql('DELETE FROM funcionarios WHERE id = ?', [id]);
+  const existing = await getFuncionarioById(id);
+  await collectionRef().doc(id).delete();
+  if (existing) {
+    invalidateFuncionariosCache(existing.gestion_id);
+  }
 }
 
 export async function countFuncionariosByGestion(
   gestionId: string,
 ): Promise<number> {
-  const db = await getDatabase();
-  const [result] = await db.executeSql(
-    'SELECT COUNT(*) as count FROM funcionarios WHERE gestion_id = ?',
-    [gestionId],
-  );
-  return result.rows.item(0).count;
+  const snapshot = await collectionRef()
+    .where('gestion_id', '==', gestionId)
+    .get();
+  return snapshot.size;
 }
 
 export async function deleteFuncionariosByGestion(
   gestionId: string,
 ): Promise<void> {
-  const db = await getDatabase();
-  await db.executeSql('DELETE FROM funcionarios WHERE gestion_id = ?', [gestionId]);
+  const snapshot = await collectionRef()
+    .where('gestion_id', '==', gestionId)
+    .get();
+  const db = getFirestoreDB();
+  const batch = db.batch();
+  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
+    batch.delete(doc.ref),
+  );
+  await batch.commit();
+  invalidateFuncionariosCache(gestionId);
 }

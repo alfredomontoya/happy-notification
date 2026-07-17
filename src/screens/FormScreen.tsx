@@ -16,7 +16,7 @@ import DateTimePicker, {
 import {format} from 'date-fns';
 import {useTheme} from '../context/ThemeContext';
 import {Persona} from '../database/types';
-import {createPersonaFromApp, updatePersona} from '../database/personas';
+import {createPersona, updatePersona} from '../database/personas';
 
 export default function FormScreen({route, navigation}: any) {
   const {colors} = useTheme();
@@ -69,7 +69,7 @@ export default function FormScreen({route, navigation}: any) {
       if (isEditing) {
         await updatePersona(persona!.id, data);
       } else {
-        await createPersonaFromApp(data);
+        await createPersona(data);
       }
       navigation.goBack();
     } catch (error: any) {
