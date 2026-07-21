@@ -1,16 +1,18 @@
 import {useState} from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  Modal,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
-  ActivityIndicator,
 } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import {useTheme} from '../context/ThemeContext';
+import {resetPassword} from '../database/usuarios';
 
 export default function LoginScreen() {
   const {login} = useAuth();
@@ -19,6 +21,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetInput, setResetInput] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleLogin = async () => {
     const trimmedUser = username.trim();
@@ -44,6 +49,35 @@ export default function LoginScreen() {
       Alert.alert('Error', msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    const trimmed = resetInput.trim();
+    if (!trimmed) {
+      Alert.alert('Error', 'Ingresa tu usuario o correo electrónico');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const email = await resetPassword(trimmed);
+      Alert.alert(
+        'Correo enviado',
+        `Se envió un enlace de restablecimiento a ${email}`,
+      );
+      setShowResetModal(false);
+      setResetInput('');
+    } catch (e: any) {
+      const msg =
+        e.code === 'user-not-found'
+          ? 'Usuario no encontrado'
+          : e.code === 'auth/user-not-found'
+          ? 'Correo no registrado'
+          : 'Error al enviar el correo';
+      Alert.alert('Error', msg);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -114,6 +148,14 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={styles.forgotBtn}
+          onPress={() => setShowResetModal(true)}>
+          <Text style={[styles.forgotText, {color: colors.primary}]}>
+            ¿Olvidaste tu contraseña?
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.themeToggle}
           onPress={toggleTheme}>
           <Text style={{color: colors.textSecondary, fontSize: 12}}>
@@ -122,6 +164,65 @@ export default function LoginScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        visible={showResetModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResetModal(false)}>
+        <View style={[styles.modalOverlay, {backgroundColor: colors.overlay}]}>
+          <View style={[styles.modalCard, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>
+              Restablecer contraseña
+            </Text>
+            <Text style={[styles.modalDesc, {color: colors.textSecondary}]}>
+              Ingresa tu usuario o correo electrónico y te enviaremos un enlace
+              para restablecer tu contraseña.
+            </Text>
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.primaryBg,
+                  color: colors.textPrimary,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Usuario o correo electrónico"
+              placeholderTextColor={colors.textSecondary}
+              value={resetInput}
+              onChangeText={setResetInput}
+              autoCapitalize="none"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel, {borderColor: colors.border}]}
+                onPress={() => {
+                  setShowResetModal(false);
+                  setResetInput('');
+                }}>
+                <Text style={[styles.modalBtnText, {color: colors.textPrimary}]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, {backgroundColor: colors.primary}]}
+                onPress={handleResetPassword}
+                disabled={resetLoading}>
+                {resetLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={[styles.modalBtnText, {color: colors.white}]}>
+                    Enviar enlace
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -197,8 +298,66 @@ const styles = StyleSheet.create({
   eyeIcon: {
     fontSize: 20,
   },
+  forgotBtn: {
+    marginTop: 16,
+    padding: 4,
+  },
+  forgotText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   themeToggle: {
     marginTop: 20,
     padding: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 24,
+    padding: 28,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  modalBtnCancel: {
+    borderWidth: 1,
+  },
+  modalBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

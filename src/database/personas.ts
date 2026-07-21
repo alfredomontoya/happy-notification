@@ -1,16 +1,15 @@
-import {getFirestoreDB} from './firebase';
+import {getDatabase} from './sqlite';
 import type {Persona} from './types';
-import type {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';
 import {
   getCachedPersonas,
   setCachedPersonas,
   invalidatePersonasCache,
 } from './personasCache';
 
-const COLLECTION = 'personas';
-
-function collectionRef() {
-  return getFirestoreDB().collection(COLLECTION);
+function generateId(): string {
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 10);
+  return `${ts}${rand}`;
 }
 
 function computeBirthdayFields(
@@ -23,39 +22,72 @@ function computeBirthdayFields(
   };
 }
 
+function rowToPersona(row: any): Persona {
+  return {
+    id: row.id,
+    ci: row.ci,
+    nombre: row.nombre,
+    cargo: row.cargo,
+    dependencia: row.dependencia,
+    fecha_nacimiento: row.fecha_nacimiento,
+    birthday_month: row.birthday_month,
+    birthday_day: row.birthday_day,
+    created_at: row.created_at,
+  };
+}
+
 export async function getAllPersonas(): Promise<Persona[]> {
   const cached = getCachedPersonas();
   if (cached) return cached;
 
-  const snapshot = await collectionRef()
-    .orderBy('nombre', 'asc')
-    .get();
-  const list: Persona[] = [];
-  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
-    list.push({id: doc.id, ...doc.data()} as Persona),
+  const db = await getDatabase();
+  const [results] = await db.executeSql(
+    'SELECT * FROM personas ORDER BY nombre ASC',
   );
+  const list: Persona[] = [];
+  for (let i = 0; i < results.rows.length; i++) {
+    list.push(rowToPersona(results.rows.item(i)));
+  }
   setCachedPersonas(list);
   return list;
 }
 
 export async function getPersonaById(id: string): Promise<Persona | null> {
-  const doc = await collectionRef().doc(id).get();
-  if (!doc.exists) return null;
-  return {id: doc.id, ...doc.data()} as Persona;
+  const db = await getDatabase();
+  const [results] = await db.executeSql(
+    'SELECT * FROM personas WHERE id = ?',
+    [id],
+  );
+  if (results.rows.length === 0) return null;
+  return rowToPersona(results.rows.item(0));
 }
 
 export async function createPersona(
   data: Omit<Persona, 'id' | 'created_at' | 'birthday_month' | 'birthday_day'>,
 ): Promise<string> {
+  const db = await getDatabase();
+  const id = generateId();
   const now = new Date().toISOString();
   const birthday = computeBirthdayFields(data.fecha_nacimiento);
-  const doc = await collectionRef().add({
-    ...data,
-    ...birthday,
-    created_at: now,
-  });
+
+  await db.executeSql(
+    `INSERT INTO personas (id, ci, nombre, cargo, dependencia, fecha_nacimiento, birthday_month, birthday_day, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      data.ci,
+      data.nombre,
+      data.cargo,
+      data.dependencia,
+      data.fecha_nacimiento,
+      birthday.birthday_month,
+      birthday.birthday_day,
+      now,
+    ],
+  );
+
   invalidatePersonasCache();
-  return doc.id;
+  return id;
 }
 
 export async function updatePersona(
@@ -64,32 +96,63 @@ export async function updatePersona(
     Omit<Persona, 'id' | 'created_at' | 'birthday_month' | 'birthday_day'>
   >,
 ): Promise<void> {
-  const updateData: Record<string, unknown> = {...data};
-  if (data.fecha_nacimiento) {
-    const birthday = computeBirthdayFields(data.fecha_nacimiento);
-    updateData.birthday_month = birthday.birthday_month;
-    updateData.birthday_day = birthday.birthday_day;
+  const db = await getDatabase();
+  const fields: string[] = [];
+  const values: any[] = [];
+
+  if (data.ci !== undefined) {
+    fields.push('ci = ?');
+    values.push(data.ci);
   }
-  await collectionRef().doc(id).update(updateData);
+  if (data.nombre !== undefined) {
+    fields.push('nombre = ?');
+    values.push(data.nombre);
+  }
+  if (data.cargo !== undefined) {
+    fields.push('cargo = ?');
+    values.push(data.cargo);
+  }
+  if (data.dependencia !== undefined) {
+    fields.push('dependencia = ?');
+    values.push(data.dependencia);
+  }
+  if (data.fecha_nacimiento !== undefined) {
+    const birthday = computeBirthdayFields(data.fecha_nacimiento);
+    fields.push('fecha_nacimiento = ?');
+    values.push(data.fecha_nacimiento);
+    fields.push('birthday_month = ?');
+    values.push(birthday.birthday_month);
+    fields.push('birthday_day = ?');
+    values.push(birthday.birthday_day);
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+  await db.executeSql(
+    `UPDATE personas SET ${fields.join(', ')} WHERE id = ?`,
+    values,
+  );
+
   invalidatePersonasCache();
 }
 
 export async function deletePersona(id: string): Promise<void> {
-  await collectionRef().doc(id).delete();
+  const db = await getDatabase();
+  await db.executeSql('DELETE FROM personas WHERE id = ?', [id]);
   invalidatePersonasCache();
 }
 
-export async function getPersonasByMonth(
-  month: number,
-): Promise<Persona[]> {
-  const snapshot = await collectionRef()
-    .where('birthday_month', '==', month)
-    .orderBy('birthday_day', 'asc')
-    .get();
-  const list: Persona[] = [];
-  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
-    list.push({id: doc.id, ...doc.data()} as Persona),
+export async function getPersonasByMonth(month: number): Promise<Persona[]> {
+  const db = await getDatabase();
+  const [results] = await db.executeSql(
+    'SELECT * FROM personas WHERE birthday_month = ? ORDER BY birthday_day ASC',
+    [month],
   );
+  const list: Persona[] = [];
+  for (let i = 0; i < results.rows.length; i++) {
+    list.push(rowToPersona(results.rows.item(i)));
+  }
   return list;
 }
 
@@ -97,40 +160,52 @@ export async function getPersonasByDay(
   month: number,
   day: number,
 ): Promise<Persona[]> {
-  const snapshot = await collectionRef()
-    .where('birthday_month', '==', month)
-    .where('birthday_day', '==', day)
-    .get();
-  const list: Persona[] = [];
-  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
-    list.push({id: doc.id, ...doc.data()} as Persona),
+  const db = await getDatabase();
+  const [results] = await db.executeSql(
+    'SELECT * FROM personas WHERE birthday_month = ? AND birthday_day = ?',
+    [month, day],
   );
+  const list: Persona[] = [];
+  for (let i = 0; i < results.rows.length; i++) {
+    list.push(rowToPersona(results.rows.item(i)));
+  }
   return list;
 }
 
 export async function importPersonas(
   data: Omit<Persona, 'id' | 'created_at' | 'birthday_month' | 'birthday_day'>[],
 ): Promise<number> {
-  const db = getFirestoreDB();
-  const batch = db.batch();
+  const db = await getDatabase();
   const now = new Date().toISOString();
-  for (const p of data) {
-    const birthday = computeBirthdayFields(p.fecha_nacimiento);
-    const ref = collectionRef().doc();
-    batch.set(ref, {...p, ...birthday, created_at: now});
-  }
-  await batch.commit();
+
+  await db.transaction(async tx => {
+    for (const p of data) {
+      const id = generateId();
+      const birthday = computeBirthdayFields(p.fecha_nacimiento);
+      tx.executeSql(
+        `INSERT INTO personas (id, ci, nombre, cargo, dependencia, fecha_nacimiento, birthday_month, birthday_day, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          p.ci,
+          p.nombre,
+          p.cargo,
+          p.dependencia,
+          p.fecha_nacimiento,
+          birthday.birthday_month,
+          birthday.birthday_day,
+          now,
+        ],
+      );
+    }
+  });
+
   invalidatePersonasCache();
   return data.length;
 }
 
 export async function limpiarPersonas(): Promise<void> {
-  const snapshot = await collectionRef().get();
-  const db = getFirestoreDB();
-  const batch = db.batch();
-  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
-    batch.delete(doc.ref),
-  );
-  await batch.commit();
+  const db = await getDatabase();
+  await db.executeSql('DELETE FROM personas');
   invalidatePersonasCache();
 }

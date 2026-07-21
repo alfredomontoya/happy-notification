@@ -18,7 +18,7 @@ notifee.onBackgroundEvent(async () => {});
 
 function AppContent() {
   const {user} = useAuth();
-  const {colors} = useTheme();
+  const {mode, colors} = useTheme();
 
   return (
     <>
@@ -28,7 +28,7 @@ function AppContent() {
       ) : (
         <NavigationContainer
           theme={{
-            dark: false,
+            dark: mode === 'dark',
             colors: {
               primary: colors.primary,
               background: colors.primaryBg,

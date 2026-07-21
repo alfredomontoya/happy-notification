@@ -203,7 +203,7 @@ function UsuariosStack() {
 
 function CustomDrawerContent({navigation}: any) {
   const {colors} = useTheme();
-  const {user} = useAuth();
+  const {user, logout} = useAuth();
   const isAdmin = user?.role === 'admin';
 
   type PermissionKeys = 'cumpleanios' | 'funcionarios' | 'gestiones' | 'configuracion';
@@ -262,6 +262,14 @@ function CustomDrawerContent({navigation}: any) {
           </TouchableOpacity>
         ))}
       </View>
+
+      <TouchableOpacity
+        style={[styles.logoutBtn, {borderTopColor: colors.border}]}
+        onPress={logout}>
+        <Text style={[styles.logoutText, {color: colors.danger}]}>
+          🚪 Cerrar sesión
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -333,5 +341,14 @@ const styles = StyleSheet.create({
   drawerItemText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  logoutBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderTopWidth: 1,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

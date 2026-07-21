@@ -158,3 +158,18 @@ export async function createAdminUserIfNotExists(): Promise<void> {
 export async function resetAdminPassword(): Promise<void> {
   await auth().sendPasswordResetEmail('admin@stmsc.gob.bo');
 }
+
+export async function resetPassword(
+  usernameOrEmail: string,
+): Promise<string> {
+  let email = usernameOrEmail;
+  if (!email.includes('@')) {
+    const profile = await getUserByUsername(email);
+    if (!profile) {
+      throw {code: 'user-not-found'};
+    }
+    email = profile.email;
+  }
+  await auth().sendPasswordResetEmail(email);
+  return email;
+}

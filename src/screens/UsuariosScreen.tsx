@@ -1,22 +1,32 @@
 import {useState, useCallback} from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
+  Modal,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
 import {useTheme} from '../context/ThemeContext';
 import {useAuth} from '../context/AuthContext';
-import {UserProfile} from '../database/types';
+import {getFunctions} from '../database/firebase';
+import type {UserProfile} from '../database/types';
 import {getAllUsers, deleteUserProfile} from '../database/usuarios';
 
 export default function UsuariosScreen({navigation}: any) {
   const {colors} = useTheme();
   const {user: currentUser} = useAuth();
   const [usuarios, setUsuarios] = useState<UserProfile[]>([]);
+  const [resetTarget, setResetTarget] = useState<{
+    uid: string;
+    nombre: string;
+  } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   const cargar = useCallback(async () => {
     const data = await getAllUsers();
@@ -49,6 +59,38 @@ export default function UsuariosScreen({navigation}: any) {
         },
       },
     ]);
+  };
+
+  const handleConfirmReset = async () => {
+    if (!resetTarget) return;
+
+    const pass = newPassword.trim();
+    if (!pass) {
+      Alert.alert('Error', 'Ingresa la nueva contraseña');
+      return;
+    }
+    if (pass.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const cloudFn = getFunctions().httpsCallable('updateUserPassword');
+      await cloudFn({uid: resetTarget.uid, newPassword: pass});
+      Alert.alert(
+        'Contraseña actualizada',
+        `La contraseña de ${resetTarget.nombre} se cambió correctamente.`,
+      );
+      setResetTarget(null);
+      setNewPassword('');
+    } catch (e: any) {
+      const msg =
+        e?.message ?? 'No se pudo cambiar la contraseña';
+      Alert.alert('Error', msg);
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const renderItem = ({item}: {item: UserProfile}) => (
@@ -85,6 +127,13 @@ export default function UsuariosScreen({navigation}: any) {
             navigation.navigate('UsuarioForm', {usuario: item})
           }>
           <Text style={styles.btnText}>Editar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.btn, {backgroundColor: colors.accent}]}
+          onPress={() =>
+            setResetTarget({uid: item.uid, nombre: item.nombre})
+          }>
+          <Text style={styles.btnText}>Resetear</Text>
         </TouchableOpacity>
         {item.role !== 'admin' && (
           <TouchableOpacity
@@ -129,6 +178,80 @@ export default function UsuariosScreen({navigation}: any) {
         }>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={resetTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setResetTarget(null);
+          setNewPassword('');
+        }}>
+        <View style={[styles.modalOverlay, {backgroundColor: colors.overlay}]}>
+          <View style={[styles.modalCard, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.modalTitle, {color: colors.textPrimary}]}>
+              Resetear contraseña
+            </Text>
+            <Text style={[styles.modalDesc, {color: colors.textSecondary}]}>
+              Ingresa la nueva contraseña para{' '}
+              <Text style={{fontWeight: '700'}}>{resetTarget?.nombre}</Text>
+            </Text>
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: colors.primaryBg,
+                  color: colors.textPrimary,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder="Nueva contraseña"
+              placeholderTextColor={colors.textSecondary}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[
+                  styles.modalBtn,
+                  styles.modalBtnCancel,
+                  {borderColor: colors.border},
+                ]}
+                onPress={() => {
+                  setResetTarget(null);
+                  setNewPassword('');
+                }}>
+                <Text
+                  style={[
+                    styles.modalBtnText,
+                    {color: colors.textPrimary},
+                  ]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.modalBtn,
+                  {backgroundColor: colors.accent},
+                ]}
+                onPress={handleConfirmReset}
+                disabled={resetLoading}>
+                {resetLoading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={[styles.modalBtnText, {color: '#FFFFFF'}]}>
+                    Cambiar contraseña
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -232,6 +355,56 @@ const styles = StyleSheet.create({
   fabText: {
     fontSize: 24,
     color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 24,
+    padding: 28,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  modalDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    marginBottom: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  modalBtnCancel: {
+    borderWidth: 1,
+  },
+  modalBtnText: {
+    fontSize: 15,
     fontWeight: '600',
   },
 });

@@ -1,32 +1,42 @@
 import {getFirestoreDB} from './firebase';
+import {getDatabase} from './sqlite';
+import type {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';
 
-const MIGRATION_DOC = '_migration';
-const MIGRATION_COLLECTION = '_app_meta';
+export async function migrateFromFirestore(): Promise<number> {
+  const db = await getDatabase();
 
-async function isMigrated(): Promise<boolean> {
-  const doc = await getFirestoreDB()
-    .collection(MIGRATION_COLLECTION)
-    .doc(MIGRATION_DOC)
-    .get();
-  return doc.exists && doc.data()?.completed === true;
-}
-
-async function setMigrated(): Promise<void> {
-  await getFirestoreDB()
-    .collection(MIGRATION_COLLECTION)
-    .doc(MIGRATION_DOC)
-    .set({completed: true, migrated_at: new Date().toISOString()});
-}
-
-export async function migrateFromSQLite(): Promise<boolean> {
-  const already = await isMigrated();
-  if (already) {
-    return false;
+  const [checkResults] = await db.executeSql(
+    'SELECT COUNT(*) AS count FROM personas',
+  );
+  if (checkResults.rows.item(0).count > 0) {
+    return 0;
   }
 
-  // SQLite data has been removed from the project.
-  // New Firestore collections will be populated from scratch
-  // via the seed Excel import or manual data entry.
-  await setMigrated();
-  return true;
+  const snapshot = await getFirestoreDB().collection('personas').get();
+  if (snapshot.size === 0) return 0;
+
+  const rows: any[] = [];
+  snapshot.forEach((doc: FirebaseFirestoreTypes.DocumentSnapshot) =>
+    rows.push({id: doc.id, ...doc.data()}),
+  );
+
+  for (const p of rows) {
+    await db.executeSql(
+      `INSERT OR IGNORE INTO personas (id, ci, nombre, cargo, dependencia, fecha_nacimiento, birthday_month, birthday_day, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        p.id,
+        p.ci ?? '',
+        p.nombre ?? '',
+        p.cargo ?? '',
+        p.dependencia ?? '',
+        p.fecha_nacimiento ?? '',
+        p.birthday_month ?? null,
+        p.birthday_day ?? null,
+        p.created_at ?? new Date().toISOString(),
+      ],
+    );
+  }
+
+  return rows.length;
 }

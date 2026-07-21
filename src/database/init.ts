@@ -1,9 +1,9 @@
-import {getFirestoreDB} from './firebase';
+import {initializeDatabase} from './sqlite';
 import {createAdminUserIfNotExists} from './usuarios';
-import {migrateFromSQLite} from './migrate';
+import {migrateFromFirestore} from './migrate';
 
 export async function initializeApp(): Promise<void> {
-  getFirestoreDB();
+  await initializeDatabase();
   await createAdminUserIfNotExists();
-  await migrateFromSQLite();
+  await migrateFromFirestore();
 }
