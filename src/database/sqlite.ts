@@ -10,12 +10,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
     name: 'awesomeproject.db',
     location: 'default',
   });
-  return db;
-}
-
-export async function initializeDatabase(): Promise<void> {
-  const database = await getDatabase();
-  await database.executeSql(`
+  await db.executeSql(`
     CREATE TABLE IF NOT EXISTS personas (
       id TEXT PRIMARY KEY,
       ci TEXT NOT NULL DEFAULT '',
@@ -28,4 +23,9 @@ export async function initializeDatabase(): Promise<void> {
       created_at TEXT NOT NULL
     )
   `);
+  return db;
+}
+
+export async function initializeDatabase(): Promise<void> {
+  await getDatabase();
 }

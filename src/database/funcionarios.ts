@@ -186,3 +186,40 @@ export async function deleteFuncionariosByGestion(
   await batch.commit();
   invalidateFuncionariosCache(gestionId);
 }
+
+const FIREBASE_BATCH_SIZE = 500;
+
+export async function createFuncionariosBatch(
+  data: Omit<
+    Funcionario,
+    'id' | 'created_at' | 'updated_at' | 'search_tokens'
+  >[],
+  onProgress?: (processed: number) => void,
+): Promise<number> {
+  const db = getFirestoreDB();
+  let count = 0;
+
+  for (let i = 0; i < data.length; i += FIREBASE_BATCH_SIZE) {
+    const chunk = data.slice(i, i + FIREBASE_BATCH_SIZE);
+    const batch = db.batch();
+    const now = new Date().toISOString();
+
+    for (const f of chunk) {
+      const tokens = generateSearchTokens(f);
+      const docRef = collectionRef().doc();
+      batch.set(docRef, {
+        ...f,
+        search_tokens: tokens,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    await batch.commit();
+    count += chunk.length;
+    invalidateFuncionariosCache();
+    onProgress?.(count);
+  }
+
+  return count;
+}

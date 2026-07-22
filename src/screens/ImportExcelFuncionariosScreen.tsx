@@ -12,7 +12,8 @@ import {pick, types} from '@react-native-documents/picker';
 import * as XLSX from 'xlsx';
 import {useTheme} from '../context/ThemeContext';
 import {useAuth} from '../context/AuthContext';
-import {createFuncionario} from '../database/funcionarios';
+import {createFuncionariosBatch} from '../database/funcionarios';
+import LoadingOverlay from '../components/LoadingOverlay';
 import {
   CAMPOS,
   CAMPOS_LABELS,
@@ -31,6 +32,7 @@ export default function ImportExcelFuncionariosScreen({route, navigation}: any) 
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [showPicker, setShowPicker] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
+  const [progressCount, setProgressCount] = useState(0);
 
   const handlePickFile = async () => {
     try {
@@ -80,32 +82,39 @@ export default function ImportExcelFuncionariosScreen({route, navigation}: any) 
       return;
     }
 
-    setImporting(true);
-    try {
-      const funcionarios = parseSheetToFuncionarios(
-        headers,
-        rows,
-        mapping,
-        user?.uid ?? '',
-        gestionId,
-      );
-      let count = 0;
-      for (const f of funcionarios) {
-        try {
-          await createFuncionario(f);
-          count++;
-        } catch (e) {
-          console.warn('Error insertando funcionario:', e);
-        }
-      }
-      Alert.alert('Importación exitosa', 'Se importaron ' + count + ' funcionarios', [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
-    } catch {
-      Alert.alert('Error', 'No se pudieron importar los datos');
-    } finally {
-      setImporting(false);
-    }
+    Alert.alert(
+      'Aviso importante',
+      'La importación se realiza en lotes para mayor velocidad. Si cierras la aplicación durante el proceso, los datos importados hasta ese momento quedarán grabados y deberás limpiar y reimportar manualmente.\n\n¿Deseas continuar?',
+      [
+        {text: 'Cancelar', style: 'cancel'},
+        {
+          text: 'Continuar',
+          onPress: async () => {
+            const funcionarios = parseSheetToFuncionarios(
+              headers,
+              rows,
+              mapping,
+              user?.uid ?? '',
+              gestionId,
+            );
+            setProgressCount(0);
+            setImporting(true);
+            try {
+              const count = await createFuncionariosBatch(funcionarios, processed => {
+                setProgressCount(processed);
+              });
+              setImporting(false);
+              Alert.alert('Importación exitosa', 'Se importaron ' + count + ' funcionarios', [
+                {text: 'OK', onPress: () => navigation.goBack()},
+              ]);
+            } catch {
+              setImporting(false);
+              Alert.alert('Error', 'No se pudieron importar los datos');
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -248,6 +257,14 @@ export default function ImportExcelFuncionariosScreen({route, navigation}: any) 
           </View>
         </View>
       </Modal>
+
+      <LoadingOverlay
+        visible={importing}
+        title="Importando funcionarios..."
+        message="Procesando funcionarios desde el archivo Excel."
+        count={progressCount}
+        total={rows.length}
+      />
     </ScrollView>
   );
 }

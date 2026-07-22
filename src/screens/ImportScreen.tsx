@@ -11,7 +11,8 @@ import {
 import {pick, types} from '@react-native-documents/picker';
 import * as XLSX from 'xlsx';
 import {useTheme} from '../context/ThemeContext';
-import {importPersonas, limpiarPersonas} from '../database/personas';
+import {importPersonas, limpiarPersonas, importPersonasBatch} from '../database/personas';
+import LoadingOverlay from '../components/LoadingOverlay';
 import {
   CAMPOS,
   CAMPOS_LABELS,
@@ -28,6 +29,7 @@ export default function ImportScreen({navigation}: any) {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [showPicker, setShowPicker] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
+  const [progressCount, setProgressCount] = useState(0);
 
   const handlePickFile = async () => {
     try {
@@ -74,16 +76,33 @@ export default function ImportScreen({navigation}: any) {
       return;
     }
 
-    setImporting(true);
-    try {
-      const personas = parseSheetToPersonas(headers, rows, mapping);
-      const count = await importPersonas(personas);
-      Alert.alert('Importación exitosa', `Se importaron ${count} personas`, [
-        {text: 'OK', onPress: () => navigation.goBack()},
-      ]);
-    } catch {
-      Alert.alert('Error', 'No se pudo leer el archivo');
-    }
+    Alert.alert(
+      'Aviso importante',
+      'La importación se realiza en lotes para mayor velocidad. Si cierras la aplicación durante el proceso, los datos importados hasta ese momento quedarán grabados y deberás limpiar y reimportar manualmente.\n\n¿Deseas continuar?',
+      [
+        {text: 'Cancelar', style: 'cancel'},
+        {
+          text: 'Continuar',
+          onPress: async () => {
+            const personas = parseSheetToPersonas(headers, rows, mapping);
+            setProgressCount(0);
+            setImporting(true);
+            try {
+              const count = await importPersonasBatch(personas, processed => {
+                setProgressCount(processed);
+              });
+              setImporting(false);
+              Alert.alert('Importación exitosa', `Se importaron ${count} personas`, [
+                {text: 'OK', onPress: () => navigation.goBack()},
+              ]);
+            } catch {
+              setImporting(false);
+              Alert.alert('Error', 'No se pudieron importar los datos');
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleClearAll = () => {
@@ -226,6 +245,14 @@ export default function ImportScreen({navigation}: any) {
           </View>
         </View>
       </Modal>
+
+      <LoadingOverlay
+        visible={importing}
+        title="Importando personas..."
+        message="Procesando personas desde el archivo Excel."
+        count={progressCount}
+        total={rows.length}
+      />
     </ScrollView>
   );
 }

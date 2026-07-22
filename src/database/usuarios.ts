@@ -1,4 +1,4 @@
-import {getFirestoreDB} from './firebase';
+import {getFirestoreDB, getFunctions} from './firebase';
 import type {UserProfile, Permissions} from './types';
 import auth from '@react-native-firebase/auth';
 import type {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';

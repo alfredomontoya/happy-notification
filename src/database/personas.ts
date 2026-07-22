@@ -207,5 +207,49 @@ export async function importPersonas(
 export async function limpiarPersonas(): Promise<void> {
   const db = await getDatabase();
   await db.executeSql('DELETE FROM personas');
-  invalidatePersonasCache();
+}
+
+const BATCH_SIZE_PERSONAS = 100;
+
+export async function importPersonasBatch(
+  data: Omit<Persona, 'id' | 'created_at' | 'birthday_month' | 'birthday_day'>[],
+  onProgress?: (processed: number) => void,
+): Promise<number> {
+  const db = await getDatabase();
+  const now = new Date().toISOString();
+  let count = 0;
+
+  for (let i = 0; i < data.length; i += BATCH_SIZE_PERSONAS) {
+    const chunk = data.slice(i, i + BATCH_SIZE_PERSONAS);
+    const placeholders = chunk
+      .map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .join(', ');
+    const values: any[] = [];
+
+    for (const p of chunk) {
+      const id = generateId();
+      const birthday = computeBirthdayFields(p.fecha_nacimiento);
+      values.push(
+        id,
+        p.ci,
+        p.nombre,
+        p.cargo,
+        p.dependencia,
+        p.fecha_nacimiento,
+        birthday.birthday_month,
+        birthday.birthday_day,
+        now,
+      );
+    }
+
+    await db.executeSql(
+      `INSERT INTO personas (id, ci, nombre, cargo, dependencia, fecha_nacimiento, birthday_month, birthday_day, created_at) VALUES ${placeholders}`,
+      values,
+    );
+
+    count += chunk.length;
+    onProgress?.(count);
+  }
+
+  return count;
 }
