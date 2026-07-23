@@ -27,6 +27,7 @@ export default function UsuariosScreen({navigation}: any) {
   } | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const cargar = useCallback(async () => {
     const data = await getAllUsers();
@@ -197,22 +198,32 @@ export default function UsuariosScreen({navigation}: any) {
               <Text style={{fontWeight: '700'}}>{resetTarget?.nombre}</Text>
             </Text>
 
-            <TextInput
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: colors.primaryBg,
-                  color: colors.textPrimary,
-                  borderColor: colors.border,
-                },
-              ]}
-              placeholder="Nueva contraseña"
-              placeholderTextColor={colors.textSecondary}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[
+                  styles.modalInput,
+                  styles.passwordInput,
+                  {
+                    backgroundColor: colors.primaryBg,
+                    color: colors.textPrimary,
+                    borderColor: colors.border,
+                  },
+                ]}
+                placeholder="Nueva contraseña"
+                placeholderTextColor={colors.textSecondary}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={styles.eyeBtn}
+                onPress={() => setShowPassword(prev => !prev)}>
+                <Text style={[styles.eyeIcon, {color: colors.textSecondary}]}>
+                  {showPassword ? '🙈' : '👁'}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -379,6 +390,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 20,
+  },
+  passwordContainer: {
+    width: '100%',
+    position: 'relative',
+    marginBottom: 20,
+  },
+  passwordInput: {
+    marginBottom: 0,
+    paddingRight: 44,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    padding: 4,
+  },
+  eyeIcon: {
+    fontSize: 20,
   },
   modalInput: {
     borderWidth: 1,

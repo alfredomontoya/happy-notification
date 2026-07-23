@@ -43,22 +43,10 @@ export async function createUserWithPermissions(
   email: string,
   password: string,
   profile: Omit<UserProfile, 'uid' | 'created_at' | 'created_by'>,
-  createdByUid: string,
 ): Promise<string> {
-  const userCredential = await auth().createUserWithEmailAndPassword(
-    email,
-    password,
-  );
-  const uid = userCredential.user.uid;
-  const now = new Date().toISOString();
-  const userDoc: UserProfile = {
-    uid,
-    ...profile,
-    created_at: now,
-    created_by: createdByUid,
-  };
-  await docRef(uid).set(userDoc);
-  return uid;
+  const cloudFn = getFunctions().httpsCallable('createUser');
+  const result = await cloudFn({email, password, profile});
+  return (result.data as any).uid;
 }
 
 export async function updateUserProfile(

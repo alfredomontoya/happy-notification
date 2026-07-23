@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import {useTheme} from '../context/ThemeContext';
-import {useAuth} from '../context/AuthContext';
 import type {Permissions, PermissionLevel, UserProfile} from '../database/types';
 import {createUserWithPermissions, updateUserProfile} from '../database/usuarios';
 
@@ -65,7 +64,6 @@ function LevelSelector({
 
 export default function UsuarioFormScreen({route, navigation}: any) {
   const {colors} = useTheme();
-  const {user: currentUser} = useAuth();
   const usuario: UserProfile | null = route.params?.usuario ?? null;
   const isEdit = !!usuario;
 
@@ -128,7 +126,6 @@ export default function UsuarioFormScreen({route, navigation}: any) {
             role,
             permissions,
           },
-          currentUser!.uid,
         );
         Alert.alert('Éxito', 'Usuario creado');
       }
